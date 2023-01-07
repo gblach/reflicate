@@ -105,7 +105,7 @@ pub fn scandir(index: &mut Index, directory: &Path) {
 }
 
 fn index_insert(index: &mut Index, record: IdxRecord) {
-	let mut step = index.len() / 2;
+	let mut step = (index.len() + 1) / 2;
 	let mut i = step;
 	loop {
 		if i == 0 || i == index.len() {

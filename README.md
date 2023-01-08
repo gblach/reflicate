@@ -44,7 +44,7 @@ Internally indexfile is combination of CDB (constant database) and msgpack.
 
 By default **reflicate** uses 256-bit blake3 hashes, which means `115792089237316195423570985008687907853269984665640564039457584007913129639936` unique values, but in paranoic mode 1024-bit hashes are used instead, so there are `179769313486231590772930519078902473361797697894230657273430081157732675805500963132708477322407536021120113879871393357658789768814416622492847430639474124377767893424865485276302219601246094119453082952085005768838150682342462881473913110540827237163350510684586298239947245938479716304835356329624224137216` unique values.
 
-Additionally, in paranoid mode all hashes are always computed because it is possible to manipulate file modification time.
+Additionally, in paranoic mode all hashes are always computed because it is possible to manipulate file modification time.
 
 ## Showcase
 

@@ -6,7 +6,7 @@ description = "Deduplicate data by creating reflinks between identical files"
 readme = "README.md"
 license = "MIT"
 repository = "https://github.com/gblach/reflicate"
-keywords = ["cli", "deduplication", "file", "filesystem", "reflink", "utility"]
+keywords = ["cli", "deduplication", "filesystem", "reflink", "utility"]
 categories = ["command-line-utilities", "filesystem"]
 
 [dependencies]

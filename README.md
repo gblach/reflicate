@@ -2,6 +2,13 @@
 
 Deduplicate data by creating reflinks between identical files.
 
+## Install
+
+```
+$ cargo install reflicate
+$ export PATH=$PATH:~/.cargo/bin
+```
+
 ## Disclaimer
 
 This is an alpha quality software.

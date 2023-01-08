@@ -2,6 +2,12 @@
 
 Deduplicate data by creating reflinks between identical files.
 
+## Disclaimer
+
+This is an alpha quality software.
+Feel free to test this program on your system and report bugs.
+But remember to make a backup first.
+
 ## Synopsis
 
 ```

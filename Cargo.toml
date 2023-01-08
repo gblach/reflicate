@@ -3,8 +3,11 @@ name = "reflicate"
 version = "0.1.0"
 edition = "2021"
 description = "Deduplicate data by creating reflinks between identical files"
+readme = "README.md"
 license = "MIT"
 repository = "https://github.com/gblach/reflicate"
+keywords = ["cli", "deduplication", "file", "filesystem", "reflink", "utility"]
+categories = ["command-line-utilities", "filesystem"]
 
 [dependencies]
 argh = "0.1"

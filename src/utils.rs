@@ -70,7 +70,11 @@ pub fn size_to_string(size: u64) -> String {
 		return format!("{} {}", s, sfx[i]);
 	} else {
 		let f = (f as f64 / 100.0).round();
-		return format!("{}.{} {}", s, f, sfx[i]);
+		if f < 10.0 {
+			return format!("{}.{} {}", s, f, sfx[i]);
+		} else {
+			return format!("{} {}", s + 1, sfx[i]);
+		}
 	}
 }
 

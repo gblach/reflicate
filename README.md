@@ -79,7 +79,7 @@ $ reflicate /mnt/test/
 10 MiB saved
 ```
 
-And we see that currently ony 43 MiB of disk space is occupied.
+And we see that currently only 43 MiB of disk space is occupied.
 ```
 $ df -h /mnt
 Filesystem      Size  Used Avail Use% Mounted on

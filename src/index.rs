@@ -163,7 +163,7 @@ pub fn make_file_hashes(index: &mut Index,
 
 		if index[i].hash == None {
 			let f = fs::File::open(&index[i].path).unwrap();
-			let mut reader = BufReader::with_capacity(8192, f);
+			let mut reader = BufReader::with_capacity(32768, f);
 			let mut hasher = blake3::Hasher::new();
 
 			loop {

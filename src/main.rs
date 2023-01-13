@@ -40,15 +40,7 @@ fn main() -> ExitCode {
 			index::indexfile_set(cdb_w, &directory, &index);
 		}
 
-		for mut subindex in index.values_mut() {
-			while subindex.len() > 1 {
-				let linkindex = index::subindex_linkable(&mut subindex);
-				if linkindex.len() > 1 {
-					saved_bytes +=
-						index::make_links(&linkindex, &directory, &args);
-				}
-			}
-		}
+		saved_bytes += index::mainloop(&mut index, &directory, &args);
 	}
 
 	if let Some(cdb_w) = cdb_w {

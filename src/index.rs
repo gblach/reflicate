@@ -155,7 +155,7 @@ pub fn make_file_hashes(index: &mut Index,
 	}
 }
 
-pub fn subindex_linkable(subindex: &mut SubIndex) -> SubIndex {
+fn subindex_linkable(subindex: &mut SubIndex) -> SubIndex {
 	let mut linkindex: SubIndex = Vec::new();
 	linkindex.push(subindex.pop().unwrap());
 
@@ -173,7 +173,7 @@ pub fn subindex_linkable(subindex: &mut SubIndex) -> SubIndex {
 	return linkindex;
 }
 
-pub fn make_links(linkindex: &SubIndex, directory: &Path, args: &utils::Args) -> u64 {
+fn make_links(linkindex: &SubIndex, directory: &Path, args: &utils::Args) -> u64 {
 	let mut saved_bytes = 0;
 
 	for i in 1 .. linkindex.len() {
@@ -189,6 +189,21 @@ pub fn make_links(linkindex: &SubIndex, directory: &Path, args: &utils::Args) ->
 					src.to_string_lossy(),
 					dest.to_string_lossy(),
 					utils::size_to_string(linkindex[0].size));
+			}
+		}
+	}
+
+	return saved_bytes;
+}
+
+pub fn mainloop(index: &mut Index, directory: &Path, args: &utils::Args) -> u64 {
+	let mut saved_bytes: u64 = 0;
+
+	for mut subindex in index.values_mut() {
+		while subindex.len() > 1 {
+			let linkindex = subindex_linkable(&mut subindex);
+			if linkindex.len() > 1 {
+				saved_bytes += make_links(&linkindex, &directory, &args);
 			}
 		}
 	}

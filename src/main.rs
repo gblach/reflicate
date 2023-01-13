@@ -55,9 +55,7 @@ fn main() -> ExitCode {
 		cdb_w.finish().unwrap();
 	}
 
-	if ! args.quiet {
-		println!("\x1b[0;1m{}\x1b[0m saved", utils::size_to_string(saved_bytes));
-	}
+	println!("\x1b[0;1m{}\x1b[0m saved", utils::size_to_string(saved_bytes));
 
 	return ExitCode::from(0);
 }

@@ -44,7 +44,8 @@ fn main() -> ExitCode {
 			while subindex.len() > 1 {
 				let linkindex = index::subindex_linkable(&mut subindex);
 				if linkindex.len() > 1 {
-					saved_bytes += index::make_links(&linkindex, &args);
+					saved_bytes +=
+						index::make_links(&linkindex, &directory, &args);
 				}
 			}
 		}

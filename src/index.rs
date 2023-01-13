@@ -173,14 +173,23 @@ pub fn subindex_linkable(subindex: &mut SubIndex) -> SubIndex {
 	return linkindex;
 }
 
-pub fn make_links(linkindex: &SubIndex, args: &utils::Args) -> u64 {
+pub fn make_links(linkindex: &SubIndex, directory: &Path, args: &utils::Args) -> u64 {
 	let mut saved_bytes = 0;
 
 	for i in 1 .. linkindex.len() {
 		if ! utils::already_linked(&linkindex[0].path, &linkindex[i].path) {
-			utils::make_link(&linkindex[0].path,
-				&linkindex[i].path, linkindex[0].size, args);
-			saved_bytes += linkindex[i].size;
+			utils::make_link(&linkindex[0].path, &linkindex[i].path, args);
+			saved_bytes += linkindex[0].size;
+
+			if ! args.quiet {
+				let src = linkindex[0].path.strip_prefix(directory).unwrap();
+				let dest = linkindex[1].path.strip_prefix(directory).unwrap();
+				println!("{}\x1b[0;1m{}\x1b[0m => \x1b[0;1m{}\x1b[0m [{}]",
+					directory.to_string_lossy(),
+					src.to_string_lossy(),
+					dest.to_string_lossy(),
+					utils::size_to_string(linkindex[0].size));
+			}
 		}
 	}
 

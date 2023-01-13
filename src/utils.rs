@@ -78,11 +78,6 @@ pub fn size_to_string(size: u64) -> String {
 	}
 }
 
-fn print_feedback(src: &Path, dest: &Path, size: u64) {
-	println!("\x1b[0;1m{}\x1b[0m => \x1b[0;1m{}\x1b[0m [{}]",
-		src.to_string_lossy(), dest.to_string_lossy(), size_to_string(size));
-}
-
 pub fn already_linked(src: &Path, dest: &Path) -> bool {
 	let srcfile = fs::File::open(&src).unwrap();
 	let destfile = fs::File::open(&dest).unwrap();
@@ -115,15 +110,12 @@ fn make_hardlink(src: &Path, dest: &Path) {
 	fs::hard_link(src, dest).unwrap();
 }
 
-pub fn make_link(src: &Path, dest: &Path, size: u64, args: &Args) {
+pub fn make_link(src: &Path, dest: &Path, args: &Args) {
 	if ! args.dryrun {
 		if ! args.hardlinks {
 			make_reflink(src, dest);
 		} else {
 			make_hardlink(src, dest)
 		}
-	}
-	if ! args.quiet {
-		print_feedback(src, dest, size);
 	}
 }

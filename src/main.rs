@@ -1,6 +1,6 @@
 mod index;
 mod utils;
-use std::collections::{ HashMap, VecDeque };
+use std::collections::HashMap;
 use std::path::Path;
 use std::process::ExitCode;
 
@@ -25,7 +25,7 @@ fn main() -> ExitCode {
 
 	for directory in args.directories.iter() {
 		let directory = Path::new(directory);
-		let mut index: index::Index = VecDeque::new();
+		let mut index: index::Index = HashMap::new();
 		let mut indexfile: index::IndexFile = HashMap::new();
 
 		if let Some(cdb_r) = &cdb_r {
@@ -33,17 +33,19 @@ fn main() -> ExitCode {
 		}
 
 		index::scandir(&mut index, &directory);
-		index::deindex_unique_sizes(&mut index);
+		index.retain(|_, v| v.len() > 1);
 		index::make_file_hashes(&mut index, &directory, &indexfile, &args);
 
 		if let Some(cdb_w) = &mut cdb_w {
 			index::indexfile_set(cdb_w, &directory, &index);
 		}
 
-		while index.len() > 0 {
-			let subindex = index::subindex_linkable(&mut index);
-			if subindex.len() > 1 {
-				saved_bytes += index::make_links(&subindex, &args);
+		for mut subindex in index.values_mut() {
+			while subindex.len() > 1 {
+				let linkindex = index::subindex_linkable(&mut subindex);
+				if linkindex.len() > 1 {
+					saved_bytes += index::make_links(&linkindex, &args);
+				}
 			}
 		}
 	}

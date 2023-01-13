@@ -1,5 +1,5 @@
 use super::utils;
-use std::collections::{ HashMap, VecDeque };
+use std::collections::HashMap;
 use std::fs;
 use std::io::{ BufRead, BufReader };
 use std::os::unix::ffi::OsStringExt;
@@ -16,8 +16,8 @@ pub struct IdxRecord {
 	hash: Option<[u8; 32]>,
 	longhash: Option<[u8; 96]>,
 }
-pub type Index = VecDeque<IdxRecord>;
 pub type SubIndex = Vec<IdxRecord>;
+pub type Index = HashMap<u64, SubIndex>;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct IdxFileRecord {
@@ -96,125 +96,91 @@ pub fn scandir(index: &mut Index, directory: &Path) {
 						longhash: None,
 					};
 
-					index_insert(index, record);
+					if ! index.contains_key(&record.size) {
+						index.insert(record.size, Vec::new());
+					}
+					index.get_mut(&record.size).unwrap().push(record);
 				}
 
 			}
 		}
-	}
-}
-
-fn index_insert(index: &mut Index, record: IdxRecord) {
-	let mut step = (index.len() + 1) / 2;
-	let mut i = step;
-	loop {
-		if i == 0 || i == index.len() {
-			break;
-		}
-		if index[i-1].size <= record.size && record.size <= index[i].size {
-			break;
-		}
-		if step > 1 {
-			step /= 2;
-		}
-		if record.size < index[i].size {
-			i -= step;
-		} else {
-			i += step;
-		}
-	}
-	index.insert(i, record);
-}
-
-pub fn deindex_unique_sizes(index: &mut Index) {
-	if index.len() > 2 {
-		for i in (1 .. index.len() - 1).rev() {
-			if index[i-1].size != index[i].size && index[i].size != index[i+1].size {
-				index.remove(i);
-			}
-		}
-	}
-	if index.len() > 1 && index[0].size != index[1].size {
-		index.pop_front();
-	}
-	let l = index.len();
-	if l > 1 && index[l-1].size != index[l-2].size {
-		index.pop_back();
-	}
-	if index.len() == 1 {
-		index.pop_back();
 	}
 }
 
 pub fn make_file_hashes(index: &mut Index,
 	directory: &Path, indexfile: &IndexFile, args: &utils::Args) {
 
-	for i in 0 .. index.len() {
-		if ! args.paranoic {
-			let path = index[i].path.strip_prefix(directory).unwrap()
-				.to_path_buf().into_os_string().into_vec();
-			let record = indexfile.get(&path);
-			if let Some(record) = record {
-				if index[i].size == record.size && index[i].mtime == record.mtime {
-					index[i].hash = record.hash;
+	for subindex in index.values_mut() {
+		for i in 0..subindex.len() {
+			if ! args.paranoic {
+				let path = subindex[i].path.strip_prefix(directory).unwrap()
+					.to_path_buf().into_os_string().into_vec();
+				let record = indexfile.get(&path);
+				if let Some(record) = record {
+					if subindex[i].size == record.size
+						&& subindex[i].mtime == record.mtime {
+
+						subindex[i].hash = record.hash;
+					}
 				}
 			}
-		}
 
-		if index[i].hash == None {
-			let f = fs::File::open(&index[i].path).unwrap();
-			let mut reader = BufReader::with_capacity(32768, f);
-			let mut hasher = blake3::Hasher::new();
+			if subindex[i].hash == None {
+				let f = fs::File::open(&subindex[i].path).unwrap();
+				let mut reader = BufReader::with_capacity(32768, f);
+				let mut hasher = blake3::Hasher::new();
 
-			loop {
-				let buffer = reader.fill_buf().unwrap();
-				let length = buffer.len();
-				if length == 0 {
-					break;
+				loop {
+					let buffer = reader.fill_buf().unwrap();
+					let length = buffer.len();
+					if length == 0 {
+						break;
+					}
+					hasher.update(buffer);
+					reader.consume(length);
 				}
-				hasher.update(buffer);
-				reader.consume(length);
-			}
 
-			let hash: [u8; 32] = hasher.finalize().into();
-			index[i].hash = Some(hash);
+				let hash: [u8; 32] = hasher.finalize().into();
+				subindex[i].hash = Some(hash);
 
-			if args.paranoic {
-				let mut longhash = [0; 128];
-				let mut longhash_reader = hasher.finalize_xof();
-				longhash_reader.fill(&mut longhash);
-				index[i].longhash = Some(longhash[32..].try_into().unwrap());
+				if args.paranoic {
+					let mut longhash = [0; 128];
+					let mut longhash_reader = hasher.finalize_xof();
+					longhash_reader.fill(&mut longhash);
+					subindex[i].longhash =
+						Some(longhash[32..].try_into().unwrap());
+				}
 			}
 		}
 	}
 }
 
-pub fn subindex_linkable(index: &mut Index) -> SubIndex {
-	let mut subindex: SubIndex = Vec::new();
-	subindex.push(index.pop_front().unwrap());
+pub fn subindex_linkable(subindex: &mut SubIndex) -> SubIndex {
+	let mut linkindex: SubIndex = Vec::new();
+	linkindex.push(subindex.pop().unwrap());
 
 	let mut i = 0;
-	while i < index.len() {
-		if subindex[0].size == index[i].size && subindex[0].hash == index[i].hash
-			&& subindex[0].longhash == index[i].longhash {
+	while i < subindex.len() {
+		if linkindex[0].size == subindex[i].size && linkindex[0].hash == subindex[i].hash
+			&& linkindex[0].longhash == subindex[i].longhash {
 
-			subindex.push(index.remove(i).unwrap());
+			linkindex.push(subindex.remove(i));
 		} else {
 			i += 1;
 		}
 	}
 
-	return subindex;
+	return linkindex;
 }
 
-pub fn make_links(subindex: &SubIndex, args: &utils::Args) -> u64 {
+pub fn make_links(linkindex: &SubIndex, args: &utils::Args) -> u64 {
 	let mut saved_bytes = 0;
 
-	for i in 1 .. subindex.len() {
-		if ! utils::already_linked(&subindex[0].path, &subindex[i].path) {
-			utils::make_link(&subindex[0].path,
-				&subindex[i].path, subindex[0].size, args);
-			saved_bytes += subindex[i].size;
+	for i in 1 .. linkindex.len() {
+		if ! utils::already_linked(&linkindex[0].path, &linkindex[i].path) {
+			utils::make_link(&linkindex[0].path,
+				&linkindex[i].path, linkindex[0].size, args);
+			saved_bytes += linkindex[i].size;
 		}
 	}
 
@@ -255,15 +221,17 @@ pub fn indexfile_get(cdb_r: &cdb::CDB, directory: &Path) -> IndexFile {
 pub fn indexfile_set(cdb_w: &mut cdb::CDBWriter, directory: &Path, index: &Index) {
 	let mut indexfile: IndexFile = HashMap::new();
 
-	for idxfile in index {
-		let path = idxfile.path.strip_prefix(directory).unwrap()
-			.to_path_buf().into_os_string().into_vec();
-		let record = IdxFileRecord {
-			size: idxfile.size,
-			mtime: idxfile.mtime,
-			hash: idxfile.hash,
-		};
-		indexfile.insert(path, record);
+	for subindex in index.values() {
+		for record in subindex {
+			let path = record.path.strip_prefix(directory).unwrap()
+				.to_path_buf().into_os_string().into_vec();
+			let filerecord = IdxFileRecord {
+				size: record.size,
+				mtime: record.mtime,
+				hash: record.hash,
+			};
+			indexfile.insert(path, filerecord);
+		}
 	}
 
 	let directory = directory.canonicalize().unwrap().into_os_string().into_vec();

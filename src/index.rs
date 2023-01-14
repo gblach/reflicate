@@ -183,7 +183,7 @@ fn make_links(linkindex: &SubIndex, directory: &Path, args: &utils::Args) -> u64
 
 			if ! args.quiet {
 				let src = linkindex[0].path.strip_prefix(directory).unwrap();
-				let dest = linkindex[1].path.strip_prefix(directory).unwrap();
+				let dest = linkindex[i].path.strip_prefix(directory).unwrap();
 				println!("{}\x1b[0;1m{}\x1b[0m => \x1b[0;1m{}\x1b[0m [{}]",
 					directory.to_string_lossy(),
 					src.to_string_lossy(),

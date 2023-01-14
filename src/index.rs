@@ -89,9 +89,9 @@ pub fn scandir(index: &mut Index, directory: &Path) {
 						.as_secs() as i64;
 
 					let record = IdxRecord {
-						path: path,
+						path,
 						size: submetadata.len(),
-						mtime: mtime,
+						mtime,
 						hash: None,
 						longhash: None,
 					};

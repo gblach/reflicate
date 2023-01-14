@@ -37,16 +37,18 @@ pub struct Args {
 pub fn temp_filename(prefix: &str) -> OsString {
 	let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 	let mut rand = [0u8; 8];
+	let mut suffix = Vec::new();
 
 	getrandom::getrandom(&mut rand).unwrap();
-	for i in 0 .. rand.len() {
-		rand[i] &= 0x3f;
-		rand[i] = chars.chars().nth(rand[i] as usize).unwrap() as u8;
+
+	for char in rand {
+		let nth = (char & 0x3f) as usize;
+		suffix.push(chars.chars().nth(nth).unwrap() as u8);
 	}
 
 	let mut filename = OsString::with_capacity(prefix.len() + rand.len());
 	filename.push(prefix);
-	filename.push(OsString::from_vec(rand.to_vec()));
+	filename.push(OsString::from_vec(suffix));
 	filename
 }
 

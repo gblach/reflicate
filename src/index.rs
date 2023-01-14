@@ -109,22 +109,22 @@ pub fn make_file_hashes(index: &mut Index,
 	directory: &Path, indexfile: &IndexFile, args: &utils::Args) {
 
 	for subindex in index.values_mut() {
-		for i in 0..subindex.len() {
+		for record in subindex {
 			if ! args.paranoic {
-				let path = subindex[i].path.strip_prefix(directory).unwrap()
+				let path = record.path.strip_prefix(directory).unwrap()
 					.to_path_buf().into_os_string().into_vec();
-				let record = indexfile.get(&path);
-				if let Some(record) = record {
-					if subindex[i].size == record.size
-						&& subindex[i].mtime == record.mtime {
+				let filerecord = indexfile.get(&path);
+				if let Some(filerecord) = filerecord {
+					if record.size == filerecord.size
+						&& record.mtime == filerecord.mtime {
 
-						subindex[i].hash = record.hash;
+						record.hash = filerecord.hash;
 					}
 				}
 			}
 
-			if subindex[i].hash.is_none() {
-				let f = fs::File::open(&subindex[i].path).unwrap();
+			if record.hash.is_none() {
+				let f = fs::File::open(&record.path).unwrap();
 				let mut reader = BufReader::with_capacity(32768, f);
 				let mut hasher = blake3::Hasher::new();
 
@@ -139,13 +139,13 @@ pub fn make_file_hashes(index: &mut Index,
 				}
 
 				let hash: [u8; 32] = hasher.finalize().into();
-				subindex[i].hash = Some(hash);
+				record.hash = Some(hash);
 
 				if args.paranoic {
 					let mut longhash = [0; 128];
 					let mut longhash_reader = hasher.finalize_xof();
 					longhash_reader.fill(&mut longhash);
-					subindex[i].longhash =
+					record.longhash =
 						Some(longhash[32..].try_into().unwrap());
 				}
 			}

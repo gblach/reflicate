@@ -125,7 +125,7 @@ pub fn make_file_hashes(index: &mut Index,
 				}
 			}
 
-			if subindex[i].hash == None {
+			if subindex[i].hash.is_none() {
 				let f = fs::File::open(&subindex[i].path).unwrap();
 				let mut reader = BufReader::with_capacity(32768, f);
 				let mut hasher = blake3::Hasher::new();

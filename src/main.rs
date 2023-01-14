@@ -9,7 +9,7 @@ fn main() -> ExitCode {
 
 	for directory in args.directories.iter() {
 		let directory = Path::new(directory);
-		if ! index::scandir_checks(&directory, &args) {
+		if ! index::scandir_checks(directory, &args) {
 			return ExitCode::from(1);
 		}
 	}
@@ -29,26 +29,26 @@ fn main() -> ExitCode {
 		let mut indexfile: index::IndexFile = HashMap::new();
 
 		if let Some(cdb_r) = &cdb_r {
-			indexfile = index::indexfile_get(cdb_r, &directory);
+			indexfile = index::indexfile_get(cdb_r, directory);
 		}
 
 		if ! args.quiet {
 			println!("Scanning \x1b[0;1m{}\x1b[0m directory ...",
 				directory.to_string_lossy());
 		}
-		index::scandir(&mut index, &directory);
+		index::scandir(&mut index, directory);
 		index.retain(|_, v| v.len() > 1);
 
 		if ! args.quiet {
 			println!("Computing file hashes ...");
 		}
-		index::make_file_hashes(&mut index, &directory, &indexfile, &args);
+		index::make_file_hashes(&mut index, directory, &indexfile, &args);
 
 		if let Some(cdb_w) = &mut cdb_w {
-			index::indexfile_set(cdb_w, &directory, &index);
+			index::indexfile_set(cdb_w, directory, &index);
 		}
 
-		saved_bytes += index::mainloop(&mut index, &directory, &args);
+		saved_bytes += index::mainloop(&mut index, directory, &args);
 	}
 
 	if let Some(cdb_w) = cdb_w {

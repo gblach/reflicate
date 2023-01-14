@@ -199,11 +199,11 @@ fn make_links(linkindex: &SubIndex, directory: &Path, args: &utils::Args) -> u64
 pub fn mainloop(index: &mut Index, directory: &Path, args: &utils::Args) -> u64 {
 	let mut saved_bytes: u64 = 0;
 
-	for mut subindex in index.values_mut() {
+	for subindex in index.values_mut() {
 		while subindex.len() > 1 {
-			let linkindex = subindex_linkable(&mut subindex);
+			let linkindex = subindex_linkable(subindex);
 			if linkindex.len() > 1 {
-				saved_bytes += make_links(&linkindex, &directory, &args);
+				saved_bytes += make_links(&linkindex, directory, args);
 			}
 		}
 	}

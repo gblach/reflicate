@@ -63,7 +63,7 @@ pub fn scandir_checks(directory: &Path, args: &utils::Args) -> bool {
 	}
 
 	fs::remove_file(&tmpfile0).unwrap();
-	return true;
+	true
 }
 
 pub fn scandir(index: &mut Index, directory: &Path) {
@@ -170,7 +170,7 @@ fn subindex_linkable(subindex: &mut SubIndex) -> SubIndex {
 		}
 	}
 
-	return linkindex;
+	linkindex
 }
 
 fn make_links(linkindex: &SubIndex, directory: &Path, args: &utils::Args) -> u64 {
@@ -193,7 +193,7 @@ fn make_links(linkindex: &SubIndex, directory: &Path, args: &utils::Args) -> u64
 		}
 	}
 
-	return saved_bytes;
+	saved_bytes
 }
 
 pub fn mainloop(index: &mut Index, directory: &Path, args: &utils::Args) -> u64 {
@@ -208,7 +208,7 @@ pub fn mainloop(index: &mut Index, directory: &Path, args: &utils::Args) -> u64 
 		}
 	}
 
-	return saved_bytes;
+	saved_bytes
 }
 
 pub fn indexfile_open(indexfile: &String, args: &utils::Args)
@@ -230,7 +230,7 @@ pub fn indexfile_open(indexfile: &String, args: &utils::Args)
 		}
 	}
 
-	return (cdb_r, cdb_w);
+	(cdb_r, cdb_w)
 }
 
 pub fn indexfile_get(cdb_r: &cdb::CDB, directory: &Path) -> IndexFile {
@@ -239,7 +239,7 @@ pub fn indexfile_get(cdb_r: &cdb::CDB, directory: &Path) -> IndexFile {
 		let msgpack = msgpack.unwrap();
 		return rmp_serde::from_slice(&msgpack).unwrap();
 	}
-	return HashMap::new();
+	HashMap::new()
 }
 
 pub fn indexfile_set(cdb_w: &mut cdb::CDBWriter, directory: &Path, index: &Index) {

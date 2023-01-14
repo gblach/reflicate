@@ -47,7 +47,7 @@ pub fn temp_filename(prefix: &str) -> OsString {
 	let mut filename = OsString::with_capacity(prefix.len() + rand.len());
 	filename.push(prefix);
 	filename.push(OsString::from_vec(rand.to_vec()));
-	return filename;
+	filename
 }
 
 pub fn size_to_string(size: u64) -> String {
@@ -88,7 +88,7 @@ pub fn already_linked(src: &Path, dest: &Path) -> bool {
 
 	let src_physical = fiemap::fiemap(src).unwrap().next().unwrap().unwrap().fe_physical;
 	let dest_physical = fiemap::fiemap(dest).unwrap().next().unwrap().unwrap().fe_physical;
-	return src_physical == dest_physical;
+	src_physical == dest_physical
 }
 
 pub fn make_reflink(src: &Path, dest: &Path) -> bool {
@@ -104,7 +104,7 @@ pub fn make_reflink(src: &Path, dest: &Path) -> bool {
 	if let Ok(metadata) = metadata {
 		fs::set_permissions(dest, metadata.permissions()).unwrap();
 	}
-	return true;
+	true
 }
 
 fn make_hardlink(src: &Path, dest: &Path) {

@@ -55,8 +55,8 @@ pub fn scandir_checks(directory: &Path, args: &utils::Args) -> bool {
 	if ! args.hardlinks {
 		if ! utils::make_reflink(&tmpfile0, &tmpfile1) {
 			fs::remove_file(&tmpfile0).unwrap();
-			eprintln!("Underlying filesystem for \x1b[0;1m{}\x1b[0m {}",
-				directory.to_string_lossy(), "does not support reflinks.");
+			eprintln!(concat!("Underlying filesystem for \x1b[0;1m{}\x1b[0m",
+				" does not support reflinks."), directory.to_string_lossy());
 			return false;
 		}
 		fs::remove_file(&tmpfile1).unwrap();

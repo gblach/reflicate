@@ -96,9 +96,7 @@ pub fn scandir(index: &mut Index, directory: &Path) {
 						longhash: None,
 					};
 
-					if ! index.contains_key(&record.size) {
-						index.insert(record.size, Vec::new());
-					}
+					index.entry(record.size).or_insert(Vec::new());
 					index.get_mut(&record.size).unwrap().push(record);
 				}
 

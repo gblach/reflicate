@@ -32,8 +32,16 @@ fn main() -> ExitCode {
 			indexfile = index::indexfile_get(cdb_r, &directory);
 		}
 
+		if ! args.quiet {
+			println!("Scanning \x1b[0;1m{}\x1b[0m directory ...",
+				directory.to_string_lossy());
+		}
 		index::scandir(&mut index, &directory);
 		index.retain(|_, v| v.len() > 1);
+
+		if ! args.quiet {
+			println!("Computing file hashes ...");
+		}
 		index::make_file_hashes(&mut index, &directory, &indexfile, &args);
 
 		if let Some(cdb_w) = &mut cdb_w {

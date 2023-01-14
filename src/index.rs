@@ -73,7 +73,7 @@ pub fn scandir(index: &mut Index, directory: &Path) {
 		for path in iter {
 			let path = path.unwrap().path();
 
-			if path.is_dir() {
+			if path.is_dir() && ! path.is_symlink() {
 
 				let submetadata = path.metadata().unwrap();
 				if metadata.dev() == submetadata.dev() {

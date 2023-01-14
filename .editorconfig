@@ -1,6 +1,6 @@
 root = true
 
-[*.{rs,c}]
+[*.rs]
 indent_style = tab
 indent_size = 8
 end_of_line = lf

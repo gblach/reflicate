@@ -1,6 +1,7 @@
 use std::ffi::OsString;
 use std::fs;
 use std::os::unix::ffi::OsStringExt;
+use std::os::unix::fs::MetadataExt;
 use std::os::unix::io::AsRawFd;
 use std::path::Path;
 use argh::FromArgs;
@@ -31,11 +32,6 @@ pub struct Args {
 	/// directories to deduplicate
 	#[argh(positional)]
 	pub directories: Vec<String>,
-}
-
-extern {
-	fn C_is_reflink(src_fd: i32, dest_fd: i32) -> i32;
-	fn C_make_reflink(src_fd: i32, dest_fd: i32) -> i32;
 }
 
 pub fn temp_filename(prefix: &str) -> OsString {
@@ -79,12 +75,20 @@ pub fn size_to_string(size: u64) -> String {
 }
 
 pub fn already_linked(src: &Path, dest: &Path) -> bool {
-	let srcfile = fs::File::open(&src).unwrap();
-	let destfile = fs::File::open(&dest).unwrap();
-	unsafe {
-		let rc = C_is_reflink(srcfile.as_raw_fd(), destfile.as_raw_fd());
-		return rc == 0 || rc == 2;
+	let src_metadata = src.metadata().unwrap();
+	let dest_metadata = dest.metadata().unwrap();
+
+	if src_metadata.dev() != dest_metadata.dev() {
+		return false;
 	}
+
+	if src_metadata.ino() == dest_metadata.ino() {
+		return true;
+	}
+
+	let src_physical = fiemap::fiemap(src).unwrap().next().unwrap().unwrap().fe_physical;
+	let dest_physical = fiemap::fiemap(dest).unwrap().next().unwrap().unwrap().fe_physical;
+	return src_physical == dest_physical;
 }
 
 pub fn make_reflink(src: &Path, dest: &Path) -> bool {
@@ -92,7 +96,7 @@ pub fn make_reflink(src: &Path, dest: &Path) -> bool {
 	let srcfile = fs::File::open(&src).unwrap();
 	let destfile = fs::File::create(&dest).unwrap();
 	unsafe {
-		let rc = C_make_reflink(srcfile.as_raw_fd(), destfile.as_raw_fd());
+		let rc = libc::ioctl(destfile.as_raw_fd(), libc::FICLONE, srcfile.as_raw_fd());
 		if rc != 0 {
 			return false;
 		}

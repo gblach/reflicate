@@ -57,5 +57,5 @@ fn main() -> ExitCode {
 
 	println!("\x1b[0;1m{}\x1b[0m saved", utils::size_to_string(saved_bytes));
 
-	return ExitCode::from(0);
+	ExitCode::from(0)
 }

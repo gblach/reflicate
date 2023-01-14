@@ -43,8 +43,8 @@ pub fn scandir_checks(directory: &Path, args: &utils::Args) -> bool {
 		},
 	}
 
-	let tmpfile0 = directory.join(utils::temp_filename(".reduce0."));
-	let tmpfile1 = directory.join(utils::temp_filename(".reduce1."));
+	let tmpfile0 = directory.join(utils::temp_filename(".reflicate0."));
+	let tmpfile1 = directory.join(utils::temp_filename(".reflicate1."));
 
 	if fs::File::create(&tmpfile0).is_err() {
 		eprintln!("Directory \x1b[0;1m{}\x1b[0m is not writable.",

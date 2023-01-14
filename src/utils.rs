@@ -119,7 +119,7 @@ pub fn make_link(src: &Path, dest: &Path, args: &Args) {
 		if ! args.hardlinks {
 			make_reflink(src, dest);
 		} else {
-			make_hardlink(src, dest)
+			make_hardlink(src, dest);
 		}
 	}
 }

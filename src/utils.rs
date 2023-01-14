@@ -93,8 +93,8 @@ pub fn already_linked(src: &Path, dest: &Path) -> bool {
 
 pub fn make_reflink(src: &Path, dest: &Path) -> bool {
 	let metadata = dest.metadata();
-	let srcfile = fs::File::open(&src).unwrap();
-	let destfile = fs::File::create(&dest).unwrap();
+	let srcfile = fs::File::open(src).unwrap();
+	let destfile = fs::File::create(dest).unwrap();
 	unsafe {
 		let rc = libc::ioctl(destfile.as_raw_fd(), libc::FICLONE, srcfile.as_raw_fd());
 		if rc != 0 {

@@ -73,31 +73,34 @@ pub fn scandir(index: &mut Index, directory: &Path) {
 		for path in iter {
 			let path = path.unwrap().path();
 
-			if path.is_dir() && ! path.is_symlink() {
-
+			if ! path.is_symlink() {
 				let submetadata = path.metadata().unwrap();
-				if metadata.dev() == submetadata.dev() {
-					scandir(index, &path);
-				}
 
-			} else if path.is_file() {
+				if path.is_dir() {
 
-				let submetadata = path.metadata().unwrap();
-				if submetadata.len() > 0 {
-					let mtime = submetadata.modified().unwrap()
-						.duration_since(UNIX_EPOCH).unwrap()
-						.as_secs() as i64;
+					if metadata.dev() == submetadata.dev() {
+						scandir(index, &path);
+					}
 
-					let record = IdxRecord {
-						path,
-						size: submetadata.len(),
-						mtime,
-						hash: None,
-						longhash: None,
-					};
+				} else if path.is_file() {
 
-					index.entry(record.size).or_insert_with(Vec::new);
-					index.get_mut(&record.size).unwrap().push(record);
+					if submetadata.len() > 0 {
+						let mtime = submetadata.modified().unwrap()
+							.duration_since(UNIX_EPOCH).unwrap()
+							.as_secs() as i64;
+
+						let record = IdxRecord {
+							path,
+							size: submetadata.len(),
+							mtime,
+							hash: None,
+							longhash: None,
+						};
+
+						index.entry(record.size).or_insert_with(Vec::new);
+						index.get_mut(&record.size).unwrap().push(record);
+					}
+
 				}
 
 			}

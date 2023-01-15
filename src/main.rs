@@ -36,7 +36,7 @@ fn main() -> ExitCode {
 			println!("Scanning \x1b[0;1m{}\x1b[0m directory ...",
 				directory.to_string_lossy());
 		}
-		index::scandir(&mut index, directory);
+		index::scandir(&mut index, directory, directory);
 		index.retain(|_, v| v.len() > 1);
 
 		if ! args.quiet {

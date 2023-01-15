@@ -66,7 +66,7 @@ pub fn scandir_checks(directory: &Path, args: &utils::Args) -> bool {
 	true
 }
 
-pub fn scandir(index: &mut Index, directory: &Path) {
+pub fn scandir(index: &mut Index, basedir: &Path, directory: &Path) {
 	let metadata = directory.metadata().unwrap();
 
 	if let Ok(iter) = directory.read_dir() {
@@ -77,10 +77,10 @@ pub fn scandir(index: &mut Index, directory: &Path) {
 				let submetadata = path.metadata().unwrap();
 
 				if path.is_dir() && metadata.dev() == submetadata.dev() {
-
-					scandir(index, &path);
-
+					scandir(index, &basedir, &path);
 				} else if path.is_file() && submetadata.len() > 0 {
+					let path = path.strip_prefix(basedir).unwrap()
+						.to_path_buf();
 
 					let mtime = submetadata.modified().unwrap()
 						.duration_since(UNIX_EPOCH).unwrap()
@@ -96,7 +96,6 @@ pub fn scandir(index: &mut Index, directory: &Path) {
 
 					index.entry(record.size).or_insert_with(Vec::new);
 					index.get_mut(&record.size).unwrap().push(record);
-
 				}
 			}
 		}
@@ -109,8 +108,7 @@ pub fn make_file_hashes(index: &mut Index,
 	for subindex in index.values_mut() {
 		for record in subindex {
 			if ! args.paranoic {
-				let path = record.path.strip_prefix(directory).unwrap()
-					.to_path_buf().into_os_string().into_vec();
+				let path = record.path.to_path_buf().into_os_string().into_vec();
 				let filerecord = indexfile.get(&path);
 				if let Some(filerecord) = filerecord {
 					if record.size == filerecord.size
@@ -122,7 +120,10 @@ pub fn make_file_hashes(index: &mut Index,
 			}
 
 			if record.hash.is_none() {
-				let f = fs::File::open(&record.path).unwrap();
+				let mut path = PathBuf::from(directory);
+				path.push(&record.path);
+
+				let f = fs::File::open(path).unwrap();
 				let mut reader = BufReader::with_capacity(32768, f);
 				let mut hasher = blake3::Hasher::new();
 
@@ -172,18 +173,22 @@ fn subindex_linkable(subindex: &mut SubIndex) -> SubIndex {
 fn make_links(linkindex: &SubIndex, directory: &Path, args: &utils::Args) -> u64 {
 	let mut saved_bytes = 0;
 
+	let mut src = PathBuf::from(directory);
+	src.push(&linkindex[0].path);
+
 	for i in 1 .. linkindex.len() {
-		if ! utils::already_linked(&linkindex[0].path, &linkindex[i].path) {
-			utils::make_link(&linkindex[0].path, &linkindex[i].path, args);
+		let mut dest = PathBuf::from(directory);
+		dest.push(&linkindex[i].path);
+
+		if ! utils::already_linked(&src, &dest) {
+			utils::make_link(&src, &dest, args);
 			saved_bytes += linkindex[0].size;
 
 			if ! args.quiet {
-				let src = linkindex[0].path.strip_prefix(directory).unwrap();
-				let dest = linkindex[i].path.strip_prefix(directory).unwrap();
 				println!("{}\x1b[0;1m{}\x1b[0m => \x1b[0;1m{}\x1b[0m [{}]",
 					directory.to_string_lossy(),
-					src.to_string_lossy(),
-					dest.to_string_lossy(),
+					linkindex[0].path.to_string_lossy(),
+					linkindex[i].path.to_string_lossy(),
 					utils::size_to_string(linkindex[0].size));
 			}
 		}

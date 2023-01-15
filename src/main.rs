@@ -24,7 +24,11 @@ fn main() -> ExitCode {
 	let mut saved_bytes: u64 = 0;
 
 	for directory in args.directories.iter() {
-		let directory = format!("{}/", directory);
+		let directory = if directory.chars().nth(directory.len() - 1).unwrap() != '/' {
+			format!("{}/", directory)
+		} else {
+			directory.to_string()
+		};
 		let directory = Path::new(&directory);
 		let mut index: index::Index = HashMap::new();
 		let mut indexfile: index::IndexFile = HashMap::new();

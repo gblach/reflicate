@@ -77,7 +77,7 @@ pub fn scandir(index: &mut Index, basedir: &Path, directory: &Path) {
 				let submetadata = path.metadata().unwrap();
 
 				if path.is_dir() && metadata.dev() == submetadata.dev() {
-					scandir(index, &basedir, &path);
+					scandir(index, basedir, &path);
 				} else if path.is_file() && submetadata.len() > 0 {
 					let path = path.strip_prefix(basedir).unwrap()
 						.to_path_buf();

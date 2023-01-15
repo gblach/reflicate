@@ -24,7 +24,7 @@ fn main() -> ExitCode {
 	let mut saved_bytes: u64 = 0;
 
 	for directory in args.directories.iter() {
-		let directory = if directory.chars().nth(directory.len() - 1).unwrap() != '/' {
+		let directory = if directory.chars().last().unwrap() != '/' {
 			format!("{}/", directory)
 		} else {
 			directory.to_string()

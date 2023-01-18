@@ -94,7 +94,6 @@ pub fn already_linked(src: &Path, dest: &Path) -> bool {
 }
 
 pub fn make_reflink(src: &Path, dest: &Path) -> bool {
-	let metadata = dest.metadata();
 	let srcfile = fs::File::open(src).unwrap();
 	let destfile = fs::File::create(dest).unwrap();
 	unsafe {
@@ -102,9 +101,6 @@ pub fn make_reflink(src: &Path, dest: &Path) -> bool {
 		if rc != 0 {
 			return false;
 		}
-	}
-	if let Ok(metadata) = metadata {
-		fs::set_permissions(dest, metadata.permissions()).unwrap();
 	}
 	true
 }

@@ -98,11 +98,8 @@ pub fn make_reflink(src: &Path, dest: &Path) -> bool {
 	let destfile = fs::File::create(dest).unwrap();
 	unsafe {
 		let rc = libc::ioctl(destfile.as_raw_fd(), libc::FICLONE, srcfile.as_raw_fd());
-		if rc != 0 {
-			return false;
-		}
+		rc == 0
 	}
-	true
 }
 
 fn make_hardlink(src: &Path, dest: &Path) {

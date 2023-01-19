@@ -64,7 +64,11 @@ pub fn size_to_string(size: u64) -> String {
 		i += 1;
 	}
 
-	format!("{:.1} {}", s as f64 + f as f64 / 1024.0, sfx[i])
+	if i == 0 {
+		format!("{} {}", s, sfx[0])
+	} else {
+		format!("{:.1} {}", s as f64 + f as f64 / 1024.0, sfx[i])
+	}
 }
 
 pub fn already_linked(src: &Path, dest: &Path) -> bool {

@@ -64,16 +64,7 @@ pub fn size_to_string(size: u64) -> String {
 		i += 1;
 	}
 
-	if f == 0 {
-		format!("{} {}", s, sfx[i])
-	} else {
-		let f = (f as f64 / 100.0).round();
-		if f < 10.0 {
-			format!("{}.{} {}", s, f, sfx[i])
-		} else {
-			format!("{} {}", s + 1, sfx[i])
-		}
-	}
+	format!("{:.1} {}", s as f64 + f as f64 / 1024.0, sfx[i])
 }
 
 pub fn already_linked(src: &Path, dest: &Path) -> bool {

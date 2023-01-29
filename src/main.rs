@@ -27,7 +27,7 @@ fn main() -> ExitCode {
 		let directory = if directory.ends_with('/') {
 			directory.to_string()
 		} else {
-			format!("{}/", directory)
+			format!("{directory}/")
 		};
 		let directory = Path::new(&directory);
 		let mut index: index::Index = HashMap::new();

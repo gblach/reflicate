@@ -227,7 +227,7 @@ pub fn indexfile_open(indexfile: &String, args: &utils::Args)
 			Err(_) => None,
 		};
 		if cdb_w.is_none() {
-			eprintln!("Index file \x1b[0;1m{}\x1b[0m is not writable.", indexfile);
+			eprintln!("Index file \x1b[0;1m{indexfile}\x1b[0m is not writable.");
 		}
 	}
 

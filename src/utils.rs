@@ -21,7 +21,8 @@ pub struct Args {
 	#[argh(option, short='i')]
 	pub indexfile: Option<String>,
 
-	/// use longer hashes and do not trust precomputed hashes from indexfile
+	/// compute sha256 hashes in addition to blake3 hashes
+	/// and do not trust precomputed hashes from indexfile
 	#[argh(switch, short='p')]
 	pub paranoic: bool,
 

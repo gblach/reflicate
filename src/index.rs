@@ -7,14 +7,15 @@ use std::os::unix::fs::MetadataExt;
 use std::path::{ Path, PathBuf };
 use std::time::UNIX_EPOCH;
 use serde::{Serialize, Deserialize};
+use sha2::Digest;
 
 #[derive(Debug)]
 pub struct IdxRecord {
 	path: PathBuf,
 	size: u64,
 	mtime: i64,
-	hash: Option<[u8; 32]>,
-	longhash: Option<[u8; 96]>,
+	blake3: Option<[u8; 32]>,
+	sha2: Option<[u8; 32]>,
 }
 pub type SubIndex = Vec<IdxRecord>;
 pub type Index = HashMap<u64, SubIndex>;
@@ -90,8 +91,8 @@ pub fn scandir(index: &mut Index, basedir: &Path, directory: &Path) {
 						path,
 						size: submetadata.len(),
 						mtime,
-						hash: None,
-						longhash: None,
+						blake3: None,
+						sha2: None,
 					};
 
 					index.entry(record.size).or_insert_with(Vec::new);
@@ -114,18 +115,19 @@ pub fn make_file_hashes(index: &mut Index,
 					if record.size == filerecord.size
 						&& record.mtime == filerecord.mtime {
 
-						record.hash = filerecord.hash;
+						record.blake3 = filerecord.hash;
 					}
 				}
 			}
 
-			if record.hash.is_none() {
+			if record.blake3.is_none() {
 				let mut path = PathBuf::from(directory);
 				path.push(&record.path);
 
 				let f = fs::File::open(path).unwrap();
 				let mut reader = BufReader::with_capacity(32768, f);
-				let mut hasher = blake3::Hasher::new();
+				let mut hasher_b3 = blake3::Hasher::new();
+				let mut hasher_s2 = sha2::Sha256::new();
 
 				loop {
 					let buffer = reader.fill_buf().unwrap();
@@ -133,19 +135,19 @@ pub fn make_file_hashes(index: &mut Index,
 					if length == 0 {
 						break;
 					}
-					hasher.update(buffer);
+					hasher_b3.update(buffer);
+					if args.paranoic {
+						hasher_s2.update(buffer);
+					}
 					reader.consume(length);
 				}
 
-				let hash: [u8; 32] = hasher.finalize().into();
-				record.hash = Some(hash);
+				let blake3: [u8; 32] = hasher_b3.finalize().into();
+				record.blake3 = Some(blake3);
 
 				if args.paranoic {
-					let mut longhash = [0; 128];
-					let mut longhash_reader = hasher.finalize_xof();
-					longhash_reader.fill(&mut longhash);
-					record.longhash =
-						Some(longhash[32..].try_into().unwrap());
+					let sha2: [u8; 32] = hasher_s2.finalize().into();
+					record.sha2 = Some(sha2);
 				}
 			}
 		}
@@ -158,8 +160,9 @@ fn subindex_linkable(subindex: &mut SubIndex) -> SubIndex {
 
 	let mut i = 0;
 	while i < subindex.len() {
-		if linkindex[0].size == subindex[i].size && linkindex[0].hash == subindex[i].hash
-			&& linkindex[0].longhash == subindex[i].longhash {
+		if linkindex[0].size == subindex[i].size
+			&& linkindex[0].blake3 == subindex[i].blake3
+			&& linkindex[0].sha2 == subindex[i].sha2 {
 
 			linkindex.push(subindex.remove(i));
 		} else {
@@ -253,7 +256,7 @@ pub fn indexfile_set(cdb_w: &mut cdb::CDBWriter, directory: &Path, index: &Index
 			let filerecord = IdxFileRecord {
 				size: record.size,
 				mtime: record.mtime,
-				hash: record.hash,
+				hash: record.blake3,
 			};
 			indexfile.insert(path, filerecord);
 		}

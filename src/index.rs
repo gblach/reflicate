@@ -108,7 +108,7 @@ pub fn make_file_hashes(index: &mut Index,
 
 	for subindex in index.values_mut() {
 		for record in subindex {
-			if ! args.paranoic {
+			if ! args.paranoid {
 				let path = record.path.to_path_buf().into_os_string().into_vec();
 				let filerecord = indexfile.get(&path);
 				if let Some(filerecord) = filerecord {
@@ -136,7 +136,7 @@ pub fn make_file_hashes(index: &mut Index,
 						break;
 					}
 					hasher_b3.update(buffer);
-					if args.paranoic {
+					if args.paranoid {
 						hasher_s2.update(buffer);
 					}
 					reader.consume(length);
@@ -145,7 +145,7 @@ pub fn make_file_hashes(index: &mut Index,
 				let blake3: [u8; 32] = hasher_b3.finalize().into();
 				record.blake3 = Some(blake3);
 
-				if args.paranoic {
+				if args.paranoid {
 					let sha2: [u8; 32] = hasher_s2.finalize().into();
 					record.sha2 = Some(sha2);
 				}

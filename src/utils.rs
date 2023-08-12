@@ -24,7 +24,7 @@ pub struct Args {
 	/// compute sha256 hashes in addition to blake3 hashes
 	/// and do not trust precomputed hashes from indexfile
 	#[argh(switch, short='p')]
-	pub paranoic: bool,
+	pub paranoid: bool,
 
 	/// be quiet
 	#[argh(switch, short='q')]

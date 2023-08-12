@@ -27,7 +27,7 @@ Options:
   -d, --dryrun      do not make any filesystem changes
   -h, --hardlinks   make hardlinks instead of reflinks
   -i, --indexfile   store computed hashes in indexfile and use them in subsequent runs
-  -p, --paranoic    use longer hashes and do not trust precomputed hashes from indexfile
+  -p, --paranoid    use longer hashes and do not trust precomputed hashes from indexfile
   -q, --quiet       be quiet
 ```
 
@@ -53,10 +53,10 @@ This mean the program can run faster when indexfile is used.
 
 Internally indexfile is combination of CDB (constant database) and msgpack.
 
-### Paranoic mode
+### Paranoid mode
 
-By default **reflicate** computes and compares blake3 hashes, but in paranoic mode sha256 hashes are used as well.
-Additionally, in paranoic mode all hashes are always computed because it is possible to manipulate file modification time.
+By default **reflicate** computes and compares blake3 hashes, but in paranoid mode sha256 hashes are used as well.
+Additionally, in paranoid mode all hashes are always computed because it is possible to manipulate file modification time.
 
 ## Systemd
 

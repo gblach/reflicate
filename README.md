@@ -27,7 +27,8 @@ Options:
   -d, --dryrun      do not make any filesystem changes
   -h, --hardlinks   make hardlinks instead of reflinks
   -i, --indexfile   store computed hashes in indexfile and use them in subsequent runs
-  -p, --paranoid    use longer hashes and do not trust precomputed hashes from indexfile
+  -p, --paranoid    compute sha256 hashes in addition to blake3 hashes
+                    and do not trust precomputed hashes from indexfile
   -q, --quiet       be quiet
 ```
 

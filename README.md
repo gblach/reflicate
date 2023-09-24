@@ -53,6 +53,8 @@ On subsequent runs, it computes hashes only for files that have different size o
 This mean the program can run faster when indexfile is used.
 
 Internally indexfile is combination of CDB (constant database) and msgpack.
+This means that indexfile will be overwritten on subsequent runs,
+so if you **reflicate** different directories, use a different indexfile.
 
 ### Paranoid mode
 

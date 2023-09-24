@@ -218,17 +218,11 @@ pub fn mainloop(index: &mut Index, directory: &Path, args: &utils::Args) -> u64 
 pub fn indexfile_open(indexfile: &String, args: &utils::Args)
 	-> (Option<cdb::CDB>, Option<cdb::CDBWriter>) {
 
-	let cdb_r = match cdb::CDB::open(indexfile) {
-		Ok(cdb_r) => Some(cdb_r),
-		Err(_) => None,
-	};
+	let cdb_r = cdb::CDB::open(indexfile).ok();
 	let mut cdb_w = None;
 
 	if ! args.dryrun {
-		cdb_w = match cdb::CDBWriter::create(indexfile) {
-			Ok(cdb_r) => Some(cdb_r),
-			Err(_) => None,
-		};
+		cdb_w = cdb::CDBWriter::create(indexfile).ok();
 		if cdb_w.is_none() {
 			eprintln!("Index file \x1b[0;1m{indexfile}\x1b[0m is not writable.");
 		}

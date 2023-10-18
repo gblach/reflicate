@@ -95,7 +95,7 @@ pub fn scandir(index: &mut Index, basedir: &Path, directory: &Path) {
 						sha2: None,
 					};
 
-					index.entry(record.size).or_insert_with(Vec::new);
+					index.entry(record.size).or_default();
 					index.get_mut(&record.size).unwrap().push(record);
 				}
 			}

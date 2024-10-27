@@ -84,8 +84,16 @@ pub fn already_linked(src: &Path, dest: &Path) -> bool {
 		return true;
 	}
 
-	let src_physical = fiemap::fiemap(src).unwrap().next().unwrap().unwrap().fe_physical;
-	let dest_physical = fiemap::fiemap(dest).unwrap().next().unwrap().unwrap().fe_physical;
+	let src_physical = match fiemap::fiemap(src) {
+		Ok(mut f) => f.next().unwrap().unwrap().fe_physical,
+		Err(_) => return true, // Do not reflink files on error
+	};
+
+	let dest_physical = match fiemap::fiemap(dest) {
+		Ok(mut f) => f.next().unwrap().unwrap().fe_physical,
+		Err(_) => return true, // Do not reflink files on error
+	};
+
 	src_physical == dest_physical
 }
 

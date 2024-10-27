@@ -1,7 +1,7 @@
 use super::utils;
 use std::collections::HashMap;
 use std::fs;
-use std::io::{ BufRead, BufReader };
+use std::io::{ BufRead, BufReader, ErrorKind };
 use std::os::unix::ffi::OsStringExt;
 use std::os::unix::fs::MetadataExt;
 use std::path::{ Path, PathBuf };
@@ -124,7 +124,15 @@ pub fn make_file_hashes(index: &mut Index,
 				let mut path = PathBuf::from(directory);
 				path.push(&record.path);
 
-				let f = fs::File::open(path).unwrap();
+				let f = match fs::File::open(&path) {
+					Ok(f) => f,
+					Err(ref err) if err.kind() == ErrorKind::PermissionDenied
+						=> continue,
+					Err(err) => {
+						eprintln!("{err}: {}", path.display());
+						std::process::exit(err.raw_os_error().unwrap())
+					}
+				};
 				let mut reader = BufReader::with_capacity(32768, f);
 				let mut hasher_b3 = blake3::Hasher::new();
 				let mut hasher_s2 = sha2::Sha256::new();
@@ -161,6 +169,7 @@ fn subindex_linkable(subindex: &mut SubIndex) -> SubIndex {
 	let mut i = 0;
 	while i < subindex.len() {
 		if linkindex[0].size == subindex[i].size
+			&& linkindex[0].blake3.is_some()
 			&& linkindex[0].blake3 == subindex[i].blake3
 			&& linkindex[0].sha2 == subindex[i].sha2 {
 

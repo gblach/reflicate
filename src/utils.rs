@@ -40,7 +40,7 @@ pub fn temp_filename(prefix: &str) -> OsString {
 	let mut rand = [0u8; 8];
 	let mut suffix = Vec::new();
 
-	getrandom::getrandom(&mut rand).unwrap();
+	getrandom::fill(&mut rand).unwrap();
 
 	for char in rand {
 		let nth = (char & 0x3f) as usize;

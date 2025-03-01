@@ -1,7 +1,7 @@
 [package]
 name = "reflicate"
 version = "0.3.2"
-edition = "2021"
+edition = "2024"
 description = "Deduplicate data by creating reflinks between identical files"
 readme = "README.md"
 license = "MIT"

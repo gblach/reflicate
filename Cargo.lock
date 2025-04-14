@@ -148,9 +148,9 @@ dependencies = [
 
 [[package]]
 name = "fiemap"
-version = "0.1.2"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89ca557b1af383657b08787a76fe05019a12b2e5850110a266ccb2fcbf287122"
+checksum = "92e387bc8b3342ba5cd115fb566e6bf2c82562433dffcecbc2474265cf8a875a"
 dependencies = [
  "bitflags",
 ]

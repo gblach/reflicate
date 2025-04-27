@@ -7,7 +7,7 @@ use std::os::unix::fs::MetadataExt;
 use std::path::{ Path, PathBuf };
 use std::time::UNIX_EPOCH;
 use serde::{Serialize, Deserialize};
-use sha2::Digest;
+use xxhash_rust::xxh3;
 
 #[derive(Debug)]
 pub struct IdxRecord {
@@ -15,7 +15,7 @@ pub struct IdxRecord {
 	size: u64,
 	mtime: i64,
 	blake3: Option<[u8; 32]>,
-	sha2: Option<[u8; 32]>,
+	xxh3: Option<u128>,
 }
 pub type SubIndex = Vec<IdxRecord>;
 pub type Index = HashMap<u64, SubIndex>;
@@ -92,7 +92,7 @@ pub fn scandir(index: &mut Index, basedir: &Path, directory: &Path) {
 						size: submetadata.len(),
 						mtime,
 						blake3: None,
-						sha2: None,
+						xxh3: None,
 					};
 
 					index.entry(record.size).or_default();
@@ -135,7 +135,7 @@ pub fn make_file_hashes(index: &mut Index,
 				};
 				let mut reader = BufReader::with_capacity(32768, f);
 				let mut hasher_b3 = blake3::Hasher::new();
-				let mut hasher_s2 = sha2::Sha256::new();
+				let mut hasher_xx = xxh3::Xxh3::new();
 
 				loop {
 					let buffer = reader.fill_buf().unwrap();
@@ -145,17 +145,15 @@ pub fn make_file_hashes(index: &mut Index,
 					}
 					hasher_b3.update(buffer);
 					if args.paranoid {
-						hasher_s2.update(buffer);
+						hasher_xx.update(buffer);
 					}
 					reader.consume(length);
 				}
 
-				let blake3: [u8; 32] = hasher_b3.finalize().into();
-				record.blake3 = Some(blake3);
+				record.blake3 = Some(hasher_b3.finalize().into());
 
 				if args.paranoid {
-					let sha2: [u8; 32] = hasher_s2.finalize().into();
-					record.sha2 = Some(sha2);
+					record.xxh3 = Some(hasher_xx.digest128());
 				}
 			}
 		}
@@ -171,7 +169,7 @@ fn subindex_linkable(subindex: &mut SubIndex) -> SubIndex {
 		if linkindex[0].size == subindex[i].size
 			&& linkindex[0].blake3.is_some()
 			&& linkindex[0].blake3 == subindex[i].blake3
-			&& linkindex[0].sha2 == subindex[i].sha2 {
+			&& linkindex[0].xxh3 == subindex[i].xxh3 {
 
 			linkindex.push(subindex.remove(i));
 		} else {

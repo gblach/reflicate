@@ -14,8 +14,8 @@ fn main() -> ExitCode {
 		}
 	}
 
-	let mut cdb_r: Option<cdb::CDB> = None;
-	let mut cdb_w: Option<cdb::CDBWriter> = None;
+	let mut cdb_r: Option<cdb2::CDB> = None;
+	let mut cdb_w: Option<cdb2::CDBWriter> = None;
 
 	if let Some(indexfile) = &args.indexfile {
 		(cdb_r, cdb_w) = index::indexfile_open(indexfile, &args);

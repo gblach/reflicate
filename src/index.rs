@@ -223,13 +223,13 @@ pub fn mainloop(index: &mut Index, directory: &Path, args: &utils::Args) -> u64 
 }
 
 pub fn indexfile_open(indexfile: &String, args: &utils::Args)
-	-> (Option<cdb::CDB>, Option<cdb::CDBWriter>) {
+	-> (Option<cdb2::CDB>, Option<cdb2::CDBWriter>) {
 
-	let cdb_r = cdb::CDB::open(indexfile).ok();
+	let cdb_r = cdb2::CDB::open(indexfile).ok();
 	let mut cdb_w = None;
 
 	if ! args.dryrun {
-		cdb_w = cdb::CDBWriter::create(indexfile).ok();
+		cdb_w = cdb2::CDBWriter::create(indexfile).ok();
 		if cdb_w.is_none() {
 			eprintln!("Index file \x1b[0;1m{indexfile}\x1b[0m is not writable.");
 		}
@@ -238,7 +238,7 @@ pub fn indexfile_open(indexfile: &String, args: &utils::Args)
 	(cdb_r, cdb_w)
 }
 
-pub fn indexfile_get(cdb_r: &cdb::CDB, directory: &Path) -> IndexFile {
+pub fn indexfile_get(cdb_r: &cdb2::CDB, directory: &Path) -> IndexFile {
 	let directory = directory.canonicalize().unwrap().into_os_string().into_vec();
 	if let Some(msgpack) = cdb_r.get(&directory) {
 		let msgpack = msgpack.unwrap();
@@ -247,7 +247,7 @@ pub fn indexfile_get(cdb_r: &cdb::CDB, directory: &Path) -> IndexFile {
 	HashMap::new()
 }
 
-pub fn indexfile_set(cdb_w: &mut cdb::CDBWriter, directory: &Path, index: &Index) {
+pub fn indexfile_set(cdb_w: &mut cdb2::CDBWriter, directory: &Path, index: &Index) {
 	let mut indexfile: IndexFile = HashMap::new();
 
 	for subindex in index.values() {

@@ -18,8 +18,8 @@ But remember to make a backup first.
 ## Synopsis
 
 ```
-reflicate [<directories...>] [-d] [-h] [-i <indexfile>] [-p] [-q]  
-  
+reflicate [<directories...>] [-d] [-h] [-i <indexfile>] [-p] [-q]
+
 Positional Arguments:
   directories       directories to deduplicate
 
@@ -27,7 +27,7 @@ Options:
   -d, --dryrun      do not make any filesystem changes
   -h, --hardlinks   make hardlinks instead of reflinks
   -i, --indexfile   store computed hashes in indexfile and use them in subsequent runs
-  -p, --paranoid    compute sha256 hashes in addition to blake3 hashes
+  -p, --paranoid    compute xxhash hashes in addition to blake3 hashes
                     and do not trust precomputed hashes from indexfile
   -q, --quiet       be quiet
 ```
@@ -58,7 +58,7 @@ so if you **reflicate** different directories, use a different indexfile.
 
 ### Paranoid mode
 
-By default **reflicate** computes and compares blake3 hashes, but in paranoid mode sha256 hashes are used as well.
+By default **reflicate** computes and compares blake3 hashes, but in paranoid mode xxhash hashes are used as well.
 Additionally, in paranoid mode all hashes are always computed because it is possible to manipulate file modification time.
 
 ## Systemd

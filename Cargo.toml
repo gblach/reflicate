@@ -10,7 +10,7 @@ keywords = ["cli", "deduplication", "filesystem", "reflink", "utility"]
 categories = ["command-line-utilities", "filesystem"]
 
 [dependencies]
-argh = "0.1"
+argp = "0.4"
 blake3 = "1"
 cdb2 = "0.7"
 fiemap = "0.1"

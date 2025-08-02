@@ -4,34 +4,34 @@ use std::os::unix::ffi::OsStringExt;
 use std::os::unix::fs::MetadataExt;
 use std::os::unix::io::AsRawFd;
 use std::path::Path;
-use argh::FromArgs;
+use argp::FromArgs;
 
 #[derive(FromArgs)]
 /// Deduplicate data by creating reflinks between identical files.
 pub struct Args {
 	/// do not make any filesystem changes
-	#[argh(switch, short='d')]
+	#[argp(switch, short='d')]
 	pub dryrun: bool,
 
 	/// make hardlinks instead of reflinks
-	#[argh(switch, short='h')]
+	#[argp(switch, short='h')]
 	pub hardlinks: bool,
 
 	/// store computed hashes in indexfile and use them in subsequent runs
-	#[argh(option, short='i')]
+	#[argp(option, short='i')]
 	pub indexfile: Option<String>,
 
 	/// compute xxhash hashes in addition to blake3 hashes
 	/// and do not trust precomputed hashes from indexfile
-	#[argh(switch, short='p')]
+	#[argp(switch, short='p')]
 	pub paranoid: bool,
 
 	/// be quiet
-	#[argh(switch, short='q')]
+	#[argp(switch, short='q')]
 	pub quiet: bool,
 
 	/// directories to deduplicate
-	#[argh(positional)]
+	#[argp(positional)]
 	pub directories: Vec<String>,
 }
 

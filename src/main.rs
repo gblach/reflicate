@@ -5,7 +5,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
-	let args: utils::Args = argh::from_env();
+	let args: utils::Args = argp::parse_args_or_exit(argp::DEFAULT);
 
 	for directory in args.directories.iter() {
 		let directory = Path::new(directory);

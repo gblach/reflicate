@@ -98,9 +98,9 @@ checksum = "7c74b8349d32d297c9134b8c88677813a227df8f779daa29bfc29c183fe3dca6"
 
 [[package]]
 name = "fiemap"
-version = "0.1.3"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92e387bc8b3342ba5cd115fb566e6bf2c82562433dffcecbc2474265cf8a875a"
+checksum = "d478c866a54b882388a2a3eb441e7ab6feb6348b174284fd95f23fa47cb46441"
 dependencies = [
  "bitflags",
 ]

@@ -77,9 +77,9 @@ dependencies = [
 
 [[package]]
 name = "cdb2"
-version = "0.7.1"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b95be9ddadcf10a6260e6310eeffc580f847d216df4fb4ee776401f77046a774"
+checksum = "60131d098157e161a0555931f698013028346388561d480181e7b0381bfd6af0"
 dependencies = [
  "memmap2",
 ]

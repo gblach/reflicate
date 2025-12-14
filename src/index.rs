@@ -112,12 +112,11 @@ pub fn make_file_hashes(index: &mut Index,
 			if ! args.paranoid {
 				let path = record.path.to_path_buf().into_os_string().into_vec();
 				let filerecord = indexfile.get(&path);
-				if let Some(filerecord) = filerecord {
-					if record.size == filerecord.size
-						&& record.mtime == filerecord.mtime {
+				if let Some(filerecord) = filerecord
+					&& record.size == filerecord.size
+					&& record.mtime == filerecord.mtime {
 
-						record.blake3 = filerecord.hash;
-					}
+					record.blake3 = filerecord.hash;
 				}
 			}
 

@@ -52,7 +52,7 @@ Hardlinks differ from reflinks in two ways:
 On subsequent runs, it computes hashes only for files that have different size or modification time.
 This mean the program can run faster when indexfile is used.
 
-Internally indexfile is combination of CDB (constant database) and msgpack.
+Internally indexfile is combination of CDB (constant database) and bincode.
 This means that indexfile will be overwritten on subsequent runs,
 so if you **reflicate** different directories, use a different indexfile.
 

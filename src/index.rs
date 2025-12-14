@@ -7,6 +7,7 @@ use std::os::unix::fs::MetadataExt;
 use std::path::{ Path, PathBuf };
 use std::time::UNIX_EPOCH;
 use serde::{Serialize, Deserialize};
+use bincode::{Encode, Decode};
 use xxhash_rust::xxh3;
 
 #[derive(Debug)]
@@ -20,7 +21,7 @@ pub struct IdxRecord {
 pub type SubIndex = Vec<IdxRecord>;
 pub type Index = HashMap<u64, SubIndex>;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Encode, Decode, Debug)]
 pub struct IdxFileRecord {
 	size: u64,
 	mtime: i64,
@@ -240,9 +241,10 @@ pub fn indexfile_open(indexfile: &String, args: &utils::Args)
 
 pub fn indexfile_get(cdb_r: &cdb2::CDB, directory: &Path) -> IndexFile {
 	let directory = directory.canonicalize().unwrap().into_os_string().into_vec();
-	if let Some(msgpack) = cdb_r.get(&directory) {
-		let msgpack = msgpack.unwrap();
-		return rmp_serde::from_slice(&msgpack).unwrap();
+	if let Some(bincode_data) = cdb_r.get(&directory) {
+		let bincode_data = bincode_data.unwrap();
+		return bincode::decode_from_slice(&bincode_data, bincode::config::standard())
+			.unwrap().0;
 	}
 	HashMap::new()
 }
@@ -264,6 +266,6 @@ pub fn indexfile_set(cdb_w: &mut cdb2::CDBWriter, directory: &Path, index: &Inde
 	}
 
 	let directory = directory.canonicalize().unwrap().into_os_string().into_vec();
-	let msgpack = rmp_serde::to_vec_named(&indexfile).unwrap();
-	cdb_w.add(&directory, &msgpack).unwrap();
+	let bincode_data = bincode::encode_to_vec(&indexfile, bincode::config::standard()).unwrap();
+	cdb_w.add(&directory, &bincode_data).unwrap();
 }

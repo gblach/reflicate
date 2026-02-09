@@ -15,7 +15,7 @@ bincode = { version = "2", features = ["derive"] }
 blake3 = "1"
 cdb2 = "0.8"
 fiemap = "0.2"
-getrandom = "0.3"
+getrandom = "0.4"
 libc = "0.2"
 serde = { version = "1", features = ["derive"] }
 xxhash-rust = { version = "0.8", features = ["xxh3"] }

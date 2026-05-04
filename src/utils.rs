@@ -1,5 +1,6 @@
 use std::ffi::OsString;
 use std::fs;
+use std::io;
 use std::os::unix::ffi::OsStringExt;
 use std::os::unix::fs::MetadataExt;
 use std::os::unix::io::AsRawFd;
@@ -73,8 +74,20 @@ pub fn size_to_string(size: u64) -> String {
 }
 
 pub fn already_linked(src: &Path, dest: &Path) -> bool {
-	let src_metadata = src.metadata().unwrap();
-	let dest_metadata = dest.metadata().unwrap();
+	let src_metadata = match src.metadata() {
+		Ok(m) => m,
+		Err(err) => {
+			eprintln!("Warning: cannot stat {}: {err}", src.display());
+			return true;
+		}
+	};
+	let dest_metadata = match dest.metadata() {
+		Ok(m) => m,
+		Err(err) => {
+			eprintln!("Warning: cannot stat {}: {err}", dest.display());
+			return true;
+		}
+	};
 
 	if src_metadata.dev() != dest_metadata.dev() {
 		return false;
@@ -85,40 +98,54 @@ pub fn already_linked(src: &Path, dest: &Path) -> bool {
 	}
 
 	let src_physical = match fiemap::fiemap(src) {
-		Ok(mut f) => f.next().unwrap().unwrap().fe_physical,
-		Err(_) => return true, // Do not reflink files on error
+		Ok(mut f) => match f.next() {
+			Some(Ok(extent)) => extent.fe_physical,
+			Some(Err(_)) => return true,
+			None => return false,
+		},
+		Err(_) => return true,
 	};
 
 	let dest_physical = match fiemap::fiemap(dest) {
-		Ok(mut f) => f.next().unwrap().unwrap().fe_physical,
-		Err(_) => return true, // Do not reflink files on error
+		Ok(mut f) => match f.next() {
+			Some(Ok(extent)) => extent.fe_physical,
+			Some(Err(_)) => return true,
+			None => return false,
+		},
+		Err(_) => return true,
 	};
 
 	src_physical == dest_physical
 }
 
-pub fn make_reflink(src: &Path, dest: &Path) -> bool {
-	let srcfile = fs::File::open(src).unwrap();
-	let destfile = fs::File::create(dest).unwrap();
+pub fn make_reflink(src: &Path, dest: &Path) -> io::Result<()> {
+	let srcfile = fs::File::open(src)?;
+	let destfile = fs::File::create(dest)?;
 	unsafe {
 		let rc = libc::ioctl(destfile.as_raw_fd(), libc::FICLONE, srcfile.as_raw_fd());
-		rc == 0
-	}
-}
-
-fn make_hardlink(src: &Path, dest: &Path) {
-	if dest.metadata().is_ok() {
-		fs::remove_file(dest).unwrap();
-	}
-	fs::hard_link(src, dest).unwrap();
-}
-
-pub fn make_link(src: &Path, dest: &Path, args: &Args) {
-	if ! args.dryrun {
-		if ! args.hardlinks {
-			make_reflink(src, dest);
+		if rc == 0 {
+			Ok(())
 		} else {
-			make_hardlink(src, dest);
+			Err(io::Error::last_os_error())
 		}
 	}
+}
+
+fn make_hardlink(src: &Path, dest: &Path) -> io::Result<()> {
+	if dest.metadata().is_ok() {
+		fs::remove_file(dest)?;
+	}
+	fs::hard_link(src, dest)?;
+	Ok(())
+}
+
+pub fn make_link(src: &Path, dest: &Path, args: &Args) -> io::Result<()> {
+	if ! args.dryrun {
+		if ! args.hardlinks {
+			make_reflink(src, dest)?;
+		} else {
+			make_hardlink(src, dest)?;
+		}
+	}
+	Ok(())
 }

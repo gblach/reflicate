@@ -56,8 +56,9 @@ fn main() -> ExitCode {
 		saved_bytes += index::mainloop(&mut index, directory, &args);
 	}
 
-	if let Some(cdb_w) = cdb_w {
-		cdb_w.finish().unwrap();
+	if let Some(cdb_w) = cdb_w
+		&& let Err(err) = cdb_w.finish() {
+		eprintln!("Warning: failed to finalize index file: {err}");
 	}
 
 	println!("\x1b[0;1m{}\x1b[0m saved", utils::size_to_string(saved_bytes));

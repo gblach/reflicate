@@ -55,38 +55,54 @@ pub fn scandir_checks(directory: &Path, args: &utils::Args) -> bool {
 	}
 
 	if ! args.hardlinks {
-		if ! utils::make_reflink(&tmpfile0, &tmpfile1) {
-			fs::remove_file(&tmpfile0).unwrap();
+		if utils::make_reflink(&tmpfile0, &tmpfile1).is_err() {
+			let _ = fs::remove_file(&tmpfile0);
 			eprintln!(concat!("Underlying filesystem for \x1b[0;1m{}\x1b[0m",
 				" does not support reflinks."), directory.to_string_lossy());
 			return false;
 		}
-		fs::remove_file(&tmpfile1).unwrap();
+		let _ = fs::remove_file(&tmpfile1);
 	}
 
-	fs::remove_file(&tmpfile0).unwrap();
+	let _ = fs::remove_file(&tmpfile0);
 	true
 }
 
 pub fn scandir(index: &mut Index, basedir: &Path, directory: &Path) {
-	let metadata = directory.metadata().unwrap();
+	let metadata = match directory.metadata() {
+		Ok(m) => m,
+		Err(_) => return,
+	};
 
 	if let Ok(iter) = directory.read_dir() {
-		for path in iter {
-			let path = path.unwrap().path();
+		for entry in iter {
+			let path = match entry {
+				Ok(e) => e.path(),
+				Err(err) => {
+					eprintln!("Warning: failed to read directory entry: {err}");
+					continue;
+				}
+			};
 
 			if ! path.is_symlink() {
-				let submetadata = path.metadata().unwrap();
+				let submetadata = match path.metadata() {
+					Ok(m) => m,
+					Err(_) => continue,
+				};
 
 				if path.is_dir() && metadata.dev() == submetadata.dev() {
 					scandir(index, basedir, &path);
 				} else if path.is_file() && submetadata.len() > 0 {
-					let path = path.strip_prefix(basedir).unwrap()
-						.to_path_buf();
+					let path = match path.strip_prefix(basedir) {
+						Ok(p) => p.to_path_buf(),
+						Err(_) => continue,
+					};
 
-					let mtime = submetadata.modified().unwrap()
-						.duration_since(UNIX_EPOCH).unwrap()
-						.as_secs() as i64;
+					let mtime = submetadata.modified()
+						.ok()
+						.and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+						.map(|d| d.as_secs() as i64)
+						.unwrap_or(0);
 
 					let record = IdxRecord {
 						path,
@@ -96,8 +112,7 @@ pub fn scandir(index: &mut Index, basedir: &Path, directory: &Path) {
 						xxh3: None,
 					};
 
-					index.entry(record.size).or_default();
-					index.get_mut(&record.size).unwrap().push(record);
+					index.entry(record.size).or_default().push(record);
 				}
 			}
 		}
@@ -129,16 +144,24 @@ pub fn make_file_hashes(index: &mut Index,
 					Err(ref err) if err.kind() == ErrorKind::PermissionDenied
 						=> continue,
 					Err(err) => {
-						eprintln!("{err}: {}", path.display());
-						std::process::exit(err.raw_os_error().unwrap())
+						eprintln!("Warning: skipping {}: {err}", path.display());
+						continue;
 					}
 				};
 				let mut reader = BufReader::with_capacity(32768, f);
 				let mut hasher_b3 = blake3::Hasher::new();
 				let mut hasher_xx = xxh3::Xxh3::new();
+				let mut read_ok = true;
 
 				loop {
-					let buffer = reader.fill_buf().unwrap();
+					let buffer = match reader.fill_buf() {
+						Ok(buf) => buf,
+						Err(err) => {
+							eprintln!("Warning: failed to read {}: {err}", path.display());
+							read_ok = false;
+							break;
+						}
+					};
 					let length = buffer.len();
 					if length == 0 {
 						break;
@@ -150,10 +173,12 @@ pub fn make_file_hashes(index: &mut Index,
 					reader.consume(length);
 				}
 
-				record.blake3 = Some(hasher_b3.finalize().into());
+				if read_ok {
+					record.blake3 = Some(hasher_b3.finalize().into());
 
-				if args.paranoid {
-					record.xxh3 = Some(hasher_xx.digest128());
+					if args.paranoid {
+						record.xxh3 = Some(hasher_xx.digest128());
+					}
 				}
 			}
 		}
@@ -191,15 +216,22 @@ fn make_links(linkindex: &SubIndex, directory: &Path, args: &utils::Args) -> u64
 		dest.push(&linkindex[i].path);
 
 		if ! utils::already_linked(&src, &dest) {
-			utils::make_link(&src, &dest, args);
-			saved_bytes += linkindex[0].size;
+			match utils::make_link(&src, &dest, args) {
+				Ok(()) => {
+					saved_bytes += linkindex[0].size;
 
-			if ! args.quiet {
-				println!("{}\x1b[0;1m{}\x1b[0m => \x1b[0;1m{}\x1b[0m [{}]",
-					directory.to_string_lossy(),
-					linkindex[0].path.to_string_lossy(),
-					linkindex[i].path.to_string_lossy(),
-					utils::size_to_string(linkindex[0].size));
+					if ! args.quiet {
+						println!("{}\x1b[0;1m{}\x1b[0m => \x1b[0;1m{}\x1b[0m [{}]",
+							directory.to_string_lossy(),
+							linkindex[0].path.to_string_lossy(),
+							linkindex[i].path.to_string_lossy(),
+							utils::size_to_string(linkindex[0].size));
+					}
+				}
+				Err(err) => {
+					eprintln!("Warning: failed to link {} => {}: {err}",
+						src.display(), dest.display());
+				}
 			}
 		}
 	}
@@ -239,11 +271,23 @@ pub fn indexfile_open(indexfile: &String, args: &utils::Args)
 }
 
 pub fn indexfile_get(cdb_r: &cdb2::CDB, directory: &Path) -> IndexFile {
-	let directory = directory.canonicalize().unwrap().into_os_string().into_vec();
-	if let Some(bincode_data) = cdb_r.get(&directory) {
-		let bincode_data = bincode_data.unwrap();
-		return bincode::decode_from_slice(&bincode_data, bincode::config::standard())
-			.unwrap().0;
+	let directory = match directory.canonicalize() {
+		Ok(p) => p.into_os_string().into_vec(),
+		Err(err) => {
+			eprintln!("Warning: cannot resolve {}: {err}", directory.display());
+			return HashMap::new();
+		}
+	};
+	if let Some(data) = cdb_r.get(&directory) {
+		match data {
+			Ok(bincode_data) => {
+				match bincode::decode_from_slice(&bincode_data, bincode::config::standard()) {
+					Ok((decoded, _)) => return decoded,
+					Err(_) => eprintln!("Warning: index file is corrupted, ignoring cached hashes."),
+				}
+			}
+			Err(err) => eprintln!("Warning: failed to read from index file: {err}"),
+		}
 	}
 	HashMap::new()
 }
@@ -264,7 +308,21 @@ pub fn indexfile_set(cdb_w: &mut cdb2::CDBWriter, directory: &Path, index: &Inde
 		}
 	}
 
-	let directory = directory.canonicalize().unwrap().into_os_string().into_vec();
-	let bincode_data = bincode::encode_to_vec(&indexfile, bincode::config::standard()).unwrap();
-	cdb_w.add(&directory, &bincode_data).unwrap();
+	let directory = match directory.canonicalize() {
+		Ok(p) => p.into_os_string().into_vec(),
+		Err(err) => {
+			eprintln!("Warning: cannot resolve {}: {err}, index not saved.", directory.display());
+			return;
+		}
+	};
+	let bincode_data = match bincode::encode_to_vec(&indexfile, bincode::config::standard()) {
+		Ok(d) => d,
+		Err(err) => {
+			eprintln!("Warning: failed to serialize index: {err}");
+			return;
+		}
+	};
+	if let Err(err) = cdb_w.add(&directory, &bincode_data) {
+		eprintln!("Warning: failed to update index: {err}");
+	}
 }

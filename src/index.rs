@@ -185,27 +185,7 @@ pub fn make_file_hashes(index: &mut Index,
 	}
 }
 
-fn subindex_linkable(subindex: &mut SubIndex) -> SubIndex {
-	let mut linkindex: SubIndex = Vec::new();
-	linkindex.push(subindex.pop().unwrap());
-
-	let mut i = 0;
-	while i < subindex.len() {
-		if linkindex[0].size == subindex[i].size
-			&& linkindex[0].blake3.is_some()
-			&& linkindex[0].blake3 == subindex[i].blake3
-			&& linkindex[0].xxh3 == subindex[i].xxh3 {
-
-			linkindex.push(subindex.remove(i));
-		} else {
-			i += 1;
-		}
-	}
-
-	linkindex
-}
-
-fn make_links(linkindex: &SubIndex, directory: &Path, args: &utils::Args) -> u64 {
+fn make_links(linkindex: &[IdxRecord], directory: &Path, args: &utils::Args) -> u64 {
 	let mut saved_bytes = 0;
 
 	let mut src = PathBuf::from(directory);
@@ -243,10 +223,13 @@ pub fn mainloop(index: &mut Index, directory: &Path, args: &utils::Args) -> u64 
 	let mut saved_bytes: u64 = 0;
 
 	for subindex in index.values_mut() {
-		while subindex.len() > 1 {
-			let linkindex = subindex_linkable(subindex);
-			if linkindex.len() > 1 {
-				saved_bytes += make_links(&linkindex, directory, args);
+		subindex.sort_unstable_by_key(|r| (r.blake3, r.xxh3));
+
+		for group in subindex.chunk_by(|a, b| {
+			a.blake3.is_some() && a.blake3 == b.blake3 && a.xxh3 == b.xxh3
+		}) {
+			if group.len() > 1 {
+				saved_bytes += make_links(group, directory, args);
 			}
 		}
 	}

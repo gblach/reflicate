@@ -1,4 +1,5 @@
 use super::utils;
+use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs;
 use std::io::{ BufRead, BufReader, ErrorKind };
@@ -122,8 +123,9 @@ pub fn scandir(index: &mut Index, basedir: &Path, directory: &Path) {
 pub fn make_file_hashes(index: &mut Index,
 	directory: &Path, indexfile: &IndexFile, args: &utils::Args) {
 
-	for subindex in index.values_mut() {
-		for record in subindex {
+	index.par_iter_mut()
+		.flat_map(|(_, subindex)| subindex.par_iter_mut())
+		.for_each(|record| {
 			if ! args.paranoid {
 				let path = record.path.to_path_buf().into_os_string().into_vec();
 				let filerecord = indexfile.get(&path);
@@ -141,11 +143,10 @@ pub fn make_file_hashes(index: &mut Index,
 
 				let f = match fs::File::open(&path) {
 					Ok(f) => f,
-					Err(ref err) if err.kind() == ErrorKind::PermissionDenied
-						=> continue,
+					Err(ref err) if err.kind() == ErrorKind::PermissionDenied => return,
 					Err(err) => {
 						eprintln!("Warning: skipping {}: {err}", path.display());
-						continue;
+						return;
 					}
 				};
 				let mut reader = BufReader::with_capacity(32768, f);
@@ -181,8 +182,7 @@ pub fn make_file_hashes(index: &mut Index,
 					}
 				}
 			}
-		}
-	}
+		});
 }
 
 fn make_links(linkindex: &[IdxRecord], directory: &Path, args: &utils::Args) -> u64 {

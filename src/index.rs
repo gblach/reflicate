@@ -86,7 +86,7 @@ pub fn scandir(index: &mut Index, basedir: &Path, directory: &Path, args: &utils
     if args.quiet || !utils::is_tty() {
         pb.set_draw_target(ProgressDrawTarget::hidden());
     }
-    pb.set_style(ProgressStyle::with_template("{spinner:.cyan} Scanning {pos} files").unwrap());
+    pb.set_style(ProgressStyle::with_template("{spinner:.white} Scanning {pos} files").unwrap());
     scandir_inner(index, basedir, directory, &pb);
     pb.finish();
 }

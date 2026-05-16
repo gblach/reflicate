@@ -1,4 +1,5 @@
 use super::utils;
+use indicatif::{ ProgressBar, ProgressDrawTarget, ProgressStyle };
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs;
@@ -69,7 +70,19 @@ pub fn scandir_checks(directory: &Path, args: &utils::Args) -> bool {
 	true
 }
 
-pub fn scandir(index: &mut Index, basedir: &Path, directory: &Path) {
+pub fn scandir(index: &mut Index, basedir: &Path, directory: &Path, args: &utils::Args) {
+	let pb = ProgressBar::new_spinner();
+	if args.quiet || ! utils::is_tty() {
+		pb.set_draw_target(ProgressDrawTarget::hidden());
+	}
+	pb.set_style(
+		ProgressStyle::with_template("{spinner:.cyan} Scanning {pos} files").unwrap()
+	);
+	scandir_inner(index, basedir, directory, &pb);
+	pb.finish();
+}
+
+fn scandir_inner(index: &mut Index, basedir: &Path, directory: &Path, pb: &ProgressBar) {
 	let metadata = match directory.metadata() {
 		Ok(m) => m,
 		Err(_) => return,
@@ -92,7 +105,7 @@ pub fn scandir(index: &mut Index, basedir: &Path, directory: &Path) {
 				};
 
 				if path.is_dir() && metadata.dev() == submetadata.dev() {
-					scandir(index, basedir, &path);
+					scandir_inner(index, basedir, &path, pb);
 				} else if path.is_file() && submetadata.len() > 0 {
 					let path = match path.strip_prefix(basedir) {
 						Ok(p) => p.to_path_buf(),
@@ -114,6 +127,7 @@ pub fn scandir(index: &mut Index, basedir: &Path, directory: &Path) {
 					};
 
 					index.entry(record.size).or_default().push(record);
+					pb.inc(1);
 				}
 			}
 		}
@@ -123,13 +137,22 @@ pub fn scandir(index: &mut Index, basedir: &Path, directory: &Path) {
 pub fn make_file_hashes(index: &mut Index,
 	directory: &Path, indexfile: &IndexFile, args: &utils::Args) {
 
+	let total = index.values().map(|s| s.len()).sum::<usize>() as u64;
+
+	let pb = ProgressBar::new(total);
+	if args.quiet || ! utils::is_tty() {
+		pb.set_draw_target(ProgressDrawTarget::hidden());
+	}
+	pb.set_style(
+		ProgressStyle::with_template("{pos} / {len} {wide_bar:.white/bright_black}").unwrap()
+	);
+
 	index.par_iter_mut()
 		.flat_map(|(_, subindex)| subindex.par_iter_mut())
 		.for_each(|record| {
 			if ! args.paranoid {
 				let path = record.path.to_path_buf().into_os_string().into_vec();
-				let filerecord = indexfile.get(&path);
-				if let Some(filerecord) = filerecord
+				if let Some(filerecord) = indexfile.get(&path)
 					&& record.size == filerecord.size
 					&& record.mtime == filerecord.mtime {
 
@@ -143,12 +166,17 @@ pub fn make_file_hashes(index: &mut Index,
 
 				let f = match fs::File::open(&path) {
 					Ok(f) => f,
-					Err(ref err) if err.kind() == ErrorKind::PermissionDenied => return,
+					Err(ref err) if err.kind() == ErrorKind::PermissionDenied => {
+						pb.inc(1);
+						return;
+					}
 					Err(err) => {
-						eprintln!("Warning: skipping {}: {err}", path.display());
+						pb.suspend(|| eprintln!("Warning: skipping {}: {err}", path.display()));
+						pb.inc(1);
 						return;
 					}
 				};
+
 				let mut reader = BufReader::with_capacity(32768, f);
 				let mut hasher_b3 = blake3::Hasher::new();
 				let mut hasher_xx = xxh3::Xxh3::new();
@@ -158,7 +186,7 @@ pub fn make_file_hashes(index: &mut Index,
 					let buffer = match reader.fill_buf() {
 						Ok(buf) => buf,
 						Err(err) => {
-							eprintln!("Warning: failed to read {}: {err}", path.display());
+							pb.suspend(|| eprintln!("Warning: failed to read {}: {err}", path.display()));
 							read_ok = false;
 							break;
 						}
@@ -174,6 +202,7 @@ pub fn make_file_hashes(index: &mut Index,
 					reader.consume(length);
 				}
 
+
 				if read_ok {
 					record.blake3 = Some(hasher_b3.finalize().into());
 
@@ -182,7 +211,11 @@ pub fn make_file_hashes(index: &mut Index,
 					}
 				}
 			}
+
+			pb.inc(1);
 		});
+
+	pb.finish();
 }
 
 fn make_links(linkindex: &[IdxRecord], directory: &Path, args: &utils::Args) -> u64 {

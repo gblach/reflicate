@@ -36,6 +36,11 @@ pub struct Args {
 	pub directories: Vec<String>,
 }
 
+pub fn is_tty() -> bool {
+	use std::io::IsTerminal;
+	std::io::stdout().is_terminal() && std::io::stderr().is_terminal()
+}
+
 pub fn temp_filename(prefix: &str) -> OsString {
 	let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 	let mut rand = [0u8; 8];

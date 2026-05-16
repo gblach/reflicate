@@ -11,20 +11,20 @@ $ export PATH=$PATH:~/.cargo/bin
 
 ## Disclaimer
 
-This is an alpha quality software.
+This is a beta quality software.
 Feel free to test this program on your system and report bugs.
 But remember to make a backup first.
 
 ## Synopsis
 
 ```
-reflicate [<directories...>] [-d] [-h] [-i <indexfile>] [-p] [-q]
+reflicate [<directories...>] [-n] [-h] [-i <indexfile>] [-p] [-q]
 
 Positional Arguments:
   directories       directories to deduplicate
 
 Options:
-  -d, --dryrun      do not make any filesystem changes
+  -n, --dry-run     do not make any filesystem changes
   -h, --hardlinks   make hardlinks instead of reflinks
   -i, --indexfile   store computed hashes in indexfile and use them in subsequent runs
   -p, --paranoid    compute xxhash hashes in addition to blake3 hashes

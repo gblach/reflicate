@@ -2,7 +2,7 @@ use super::utils;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs;
-use std::io::{ BufRead, BufReader, ErrorKind };
+use std::io::{ BufRead, BufReader, ErrorKind, Read };
 use std::os::unix::ffi::OsStringExt;
 use std::os::unix::fs::MetadataExt;
 use std::path::{ Path, PathBuf };
@@ -237,10 +237,30 @@ pub fn mainloop(index: &mut Index, directory: &Path, args: &utils::Args) -> u64 
 	saved_bytes
 }
 
+fn cdb_validate(indexfile: &str, cdb: &cdb2::CDB) -> bool {
+	let mut buf = [0u8; 4];
+	let header_ok = fs::File::open(indexfile)
+		.and_then(|mut f| f.read_exact(&mut buf))
+		.map(|_| u32::from_le_bytes(buf) >= 2048)
+		.unwrap_or(false);
+	header_ok && cdb.iter().all(|r| r.is_ok())
+}
+
 pub fn indexfile_open(indexfile: &String, args: &utils::Args)
 	-> (Option<cdb2::CDB>, Option<cdb2::CDBWriter>) {
 
-	let cdb_r = cdb2::CDB::open(indexfile).ok();
+	let cdb_r = match cdb2::CDB::open(indexfile) {
+		Ok(cdb) if cdb_validate(indexfile, &cdb) => Some(cdb),
+		Ok(_) => {
+			eprintln!("Index file \x1b[0;1m{indexfile}\x1b[0m is corrupted, ignoring cached hashes.");
+			None
+		}
+		Err(e) if e.kind() != ErrorKind::NotFound => {
+			eprintln!("Index file \x1b[0;1m{indexfile}\x1b[0m is corrupted, ignoring cached hashes.");
+			None
+		}
+		Err(_) => None,
+	};
 	let mut cdb_w = None;
 
 	if ! args.dryrun {

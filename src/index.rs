@@ -1,5 +1,4 @@
 use super::utils;
-use bincode::{Decode, Encode};
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -10,6 +9,7 @@ use std::os::unix::ffi::OsStringExt;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
+use wincode::{SchemaRead, SchemaWrite};
 use xxhash_rust::xxh3;
 
 #[derive(Debug)]
@@ -23,7 +23,7 @@ pub struct IdxRecord {
 pub type SubIndex = Vec<IdxRecord>;
 pub type Index = HashMap<u64, SubIndex>;
 
-#[derive(Serialize, Deserialize, Encode, Decode, Debug)]
+#[derive(Serialize, Deserialize, SchemaRead, SchemaWrite, Debug)]
 pub struct IdxFileRecord {
     size: u64,
     mtime: i64,
@@ -342,8 +342,11 @@ pub fn indexfile_get(cdb_r: &cdb2::CDB, directory: &Path) -> IndexFile {
     if let Some(data) = cdb_r.get(&directory) {
         match data {
             Ok(bincode_data) => {
-                match bincode::decode_from_slice(&bincode_data, bincode::config::standard()) {
-                    Ok((decoded, _)) => return decoded,
+                match wincode::config::deserialize::<IndexFile, _>(
+                    &bincode_data,
+                    wincode::config::Configuration::default().with_varint_encoding(),
+                ) {
+                    Ok(decoded) => return decoded,
                     Err(_) => {
                         eprintln!("Warning: index file is corrupted, ignoring cached hashes.")
                     }
@@ -386,13 +389,18 @@ pub fn indexfile_set(cdb_w: &mut cdb2::CDBWriter, directory: &Path, index: &Inde
             return;
         }
     };
-    let bincode_data = match bincode::encode_to_vec(&indexfile, bincode::config::standard()) {
+
+    let bincode_data = match wincode::config::serialize(
+        &indexfile,
+        wincode::config::Configuration::default().with_varint_encoding(),
+    ) {
         Ok(d) => d,
         Err(err) => {
             eprintln!("Warning: failed to serialize index: {err}");
             return;
         }
     };
+
     if let Err(err) = cdb_w.add(&directory, &bincode_data) {
         eprintln!("Warning: failed to update index: {err}");
     }

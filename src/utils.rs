@@ -11,8 +11,8 @@ use argp::FromArgs;
 /// Deduplicate data by creating reflinks between identical files.
 pub struct Args {
 	/// do not make any filesystem changes
-	#[argp(switch, short='d')]
-	pub dryrun: bool,
+	#[argp(switch, short='n')]
+	pub dry_run: bool,
 
 	/// make hardlinks instead of reflinks
 	#[argp(switch, short='h')]
@@ -140,7 +140,7 @@ fn make_hardlink(src: &Path, dest: &Path) -> io::Result<()> {
 }
 
 pub fn make_link(src: &Path, dest: &Path, args: &Args) -> io::Result<()> {
-	if ! args.dryrun {
+	if ! args.dry_run {
 		if ! args.hardlinks {
 			make_reflink(src, dest)?;
 		} else {

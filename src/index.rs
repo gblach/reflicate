@@ -263,7 +263,7 @@ pub fn indexfile_open(indexfile: &String, args: &utils::Args)
 	};
 	let mut cdb_w = None;
 
-	if ! args.dryrun {
+	if ! args.dry_run {
 		cdb_w = cdb2::CDBWriter::create(indexfile).ok();
 		if cdb_w.is_none() {
 			eprintln!("Index file \x1b[0;1m{indexfile}\x1b[0m is not writable.");

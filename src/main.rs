@@ -7,6 +7,11 @@ use std::process::ExitCode;
 fn main() -> ExitCode {
     let args: utils::Args = argp::parse_args_or_exit(argp::DEFAULT);
 
+    if args.version {
+        println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+        return ExitCode::SUCCESS;
+    }
+
     for directory in args.directories.iter() {
         let directory = Path::new(directory);
         if !index::scandir_checks(directory, &args) {

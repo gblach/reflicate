@@ -31,6 +31,10 @@ pub struct Args {
     #[argp(switch, short = 'q')]
     pub quiet: bool,
 
+    /// print version and exit
+    #[argp(switch, short = 'V')]
+    pub version: bool,
+
     /// directories to deduplicate
     #[argp(positional)]
     pub directories: Vec<String>,

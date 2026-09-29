@@ -18,7 +18,7 @@ But remember to make a backup first.
 ## Synopsis
 
 ```
-reflicate [<directories...>] [-n] [-h] [-i <indexfile>] [-p] [-q]
+reflicate [<directories...>] [-n] [-h] [-i <indexfile>] [-p] [-q] [-V]
 
 Positional Arguments:
   directories       directories to deduplicate
@@ -30,6 +30,7 @@ Options:
   -p, --paranoid    compute xxhash hashes in addition to blake3 hashes
                     and do not trust precomputed hashes from indexfile
   -q, --quiet       be quiet
+  -V, --version     print version and exit
 ```
 
 ## Description

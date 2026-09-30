@@ -14,6 +14,11 @@ pub struct Args {
     #[argp(switch, short = 'n')]
     pub dry_run: bool,
 
+    /// clone files without letting the kernel verify their contents (faster, but a file
+    /// changed after hashing is overwritten)
+    #[argp(switch, short = 'f')]
+    pub fast: bool,
+
     /// make hardlinks instead of reflinks
     #[argp(switch, short = 'h')]
     pub hardlinks: bool,
@@ -38,6 +43,25 @@ pub struct Args {
     /// directories to deduplicate
     #[argp(positional)]
     pub directories: Vec<String>,
+}
+
+#[repr(C)]
+struct FileDedupeRangeInfo {
+    dest_fd: i64,
+    dest_offset: u64,
+    bytes_deduped: u64,
+    status: i32,
+    reserved: u32,
+}
+
+#[repr(C)]
+struct FileDedupeRange {
+    src_offset: u64,
+    src_length: u64,
+    dest_count: u16,
+    reserved1: u16,
+    reserved2: u32,
+    info: [FileDedupeRangeInfo; 1],
 }
 
 pub fn is_tty() -> bool {
@@ -127,6 +151,53 @@ pub fn already_linked(src: &Path, dest: &Path) -> bool {
     src_physical == dest_physical
 }
 
+
+// Unlike FICLONE, the kernel compares the bytes itself and shares extents atomically, so dest is
+// never truncated and a file changed since hashing is left alone.
+fn make_dedupe(src: &Path, dest: &Path) -> io::Result<()> {
+    let srcfile = fs::File::open(src)?;
+    let destfile = fs::OpenOptions::new().write(true).open(dest)?;
+    let length = srcfile.metadata()?.len();
+    let mut offset = 0;
+
+    // Filesystems may dedupe less than requested per call (btrfs caps it at 16 MiB).
+    while offset < length {
+        let mut range = FileDedupeRange {
+            src_offset: offset,
+            src_length: length - offset,
+            dest_count: 1,
+            reserved1: 0,
+            reserved2: 0,
+            info: [FileDedupeRangeInfo {
+                dest_fd: destfile.as_raw_fd() as i64,
+                dest_offset: offset,
+                bytes_deduped: 0,
+                status: 0,
+                reserved: 0,
+            }],
+        };
+        // FIDEDUPERANGE = _IOWR(0x94, 54, struct file_dedupe_range), not exported by libc.
+        let rc = unsafe { libc::ioctl(srcfile.as_raw_fd(), 0xc0189436, &mut range) };
+        if rc != 0 {
+            return Err(io::Error::last_os_error());
+        }
+
+        let info = &range.info[0];
+        // FILE_DEDUPE_RANGE_DIFFERS
+        if info.status == 1 {
+            return Err(io::Error::other("file contents differ"));
+        }
+        if info.status < 0 {
+            return Err(io::Error::from_raw_os_error(-info.status));
+        }
+        if info.bytes_deduped == 0 {
+            return Err(io::Error::other("no bytes deduplicated"));
+        }
+        offset += info.bytes_deduped;
+    }
+    Ok(())
+}
+
 pub fn make_reflink(src: &Path, dest: &Path) -> io::Result<()> {
     let srcfile = fs::File::open(src)?;
     let destfile = fs::File::create(dest)?;
@@ -141,19 +212,23 @@ pub fn make_reflink(src: &Path, dest: &Path) -> io::Result<()> {
 }
 
 fn make_hardlink(src: &Path, dest: &Path) -> io::Result<()> {
-    if dest.metadata().is_ok() {
-        fs::remove_file(dest)?;
+    let tmpfile = dest.with_file_name(temp_filename(".reflicate."));
+    fs::hard_link(src, &tmpfile)?;
+    if let Err(err) = fs::rename(&tmpfile, dest) {
+        let _ = fs::remove_file(&tmpfile);
+        return Err(err);
     }
-    fs::hard_link(src, dest)?;
     Ok(())
 }
 
 pub fn make_link(src: &Path, dest: &Path, args: &Args) -> io::Result<()> {
     if !args.dry_run {
-        if !args.hardlinks {
+        if args.hardlinks {
+            make_hardlink(src, dest)?;
+        } else if args.fast {
             make_reflink(src, dest)?;
         } else {
-            make_hardlink(src, dest)?;
+            make_dedupe(src, dest)?;
         }
     }
     Ok(())

@@ -234,6 +234,12 @@ fn make_hardlink(src: &Path, dest: &Path) -> io::Result<()> {
 }
 
 pub fn make_link(src: &Path, dest: &Path, args: &Args) -> io::Result<()> {
+    if args.hardlinks {
+        let (s, d) = (src.metadata()?, dest.metadata()?);
+        if (s.mode(), s.uid(), s.gid()) != (d.mode(), d.uid(), d.gid()) {
+            return Err(io::Error::other("owner or permissions differ"));
+        }
+    }
     if !args.dry_run {
         if args.hardlinks {
             make_hardlink(src, dest)?;

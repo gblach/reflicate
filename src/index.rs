@@ -63,7 +63,9 @@ pub fn scandir_checks(directory: &Path, args: &utils::Args) -> bool {
     }
 
     if !args.hardlinks {
-        if utils::make_reflink(&tmpfile0, &tmpfile1).is_err() {
+        let result = utils::make_reflink(&tmpfile0, &tmpfile1);
+        let _ = fs::remove_file(&tmpfile1);
+        if result.is_err() {
             let _ = fs::remove_file(&tmpfile0);
             eprintln!(
                 concat!(
@@ -74,7 +76,6 @@ pub fn scandir_checks(directory: &Path, args: &utils::Args) -> bool {
             );
             return false;
         }
-        let _ = fs::remove_file(&tmpfile1);
     }
 
     let _ = fs::remove_file(&tmpfile0);

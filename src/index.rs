@@ -8,7 +8,6 @@ use std::io::{BufRead, BufReader, ErrorKind, Read};
 use std::os::unix::ffi::OsStringExt;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
-use std::time::UNIX_EPOCH;
 use wincode::{SchemaRead, SchemaWrite};
 use xxhash_rust::xxh3;
 
@@ -16,7 +15,8 @@ use xxhash_rust::xxh3;
 pub struct IdxRecord {
     path: PathBuf,
     size: u64,
-    mtime: i64,
+    mtime: i128,
+    ctime: i128,
     blake3: Option<[u8; 32]>,
     xxh3: Option<u128>,
 }
@@ -26,10 +26,21 @@ pub type Index = HashMap<u64, SubIndex>;
 #[derive(Serialize, Deserialize, SchemaRead, SchemaWrite, Debug)]
 pub struct IdxFileRecord {
     size: u64,
-    mtime: i64,
+    mtime: i128,
+    ctime: i128,
     hash: Option<[u8; 32]>,
 }
 pub type IndexFile = HashMap<Vec<u8>, IdxFileRecord>;
+
+// Nanoseconds since the epoch. ctime is included because, unlike mtime, it can't be set back by
+// tools such as touch.
+fn file_times(metadata: &fs::Metadata) -> (i128, i128) {
+    let ns = |sec: i64, nsec: i64| sec as i128 * 1_000_000_000 + nsec as i128;
+    (
+        ns(metadata.mtime(), metadata.mtime_nsec()),
+        ns(metadata.ctime(), metadata.ctime_nsec()),
+    )
+}
 
 pub fn scandir_checks(directory: &Path, args: &utils::Args) -> bool {
     match directory.metadata() {
@@ -122,17 +133,13 @@ fn scandir_inner(index: &mut Index, basedir: &Path, directory: &Path, pb: &Progr
                         Err(_) => continue,
                     };
 
-                    let mtime = submetadata
-                        .modified()
-                        .ok()
-                        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-                        .map(|d| d.as_secs() as i64)
-                        .unwrap_or(0);
+                    let (mtime, ctime) = file_times(&submetadata);
 
                     let record = IdxRecord {
                         path,
                         size: submetadata.len(),
                         mtime,
+                        ctime,
                         blake3: None,
                         xxh3: None,
                     };
@@ -170,6 +177,7 @@ pub fn make_file_hashes(
                 if let Some(filerecord) = indexfile.get(&path)
                     && record.size == filerecord.size
                     && record.mtime == filerecord.mtime
+                    && record.ctime == filerecord.ctime
                 {
                     record.blake3 = filerecord.hash;
                 }
@@ -234,7 +242,7 @@ pub fn make_file_hashes(
     pb.finish();
 }
 
-fn make_links(linkindex: &[IdxRecord], directory: &Path, args: &utils::Args) -> u64 {
+fn make_links(linkindex: &mut [IdxRecord], directory: &Path, args: &utils::Args) -> u64 {
     let mut saved_bytes = 0;
 
     let mut src = PathBuf::from(directory);
@@ -270,6 +278,16 @@ fn make_links(linkindex: &[IdxRecord], directory: &Path, args: &utils::Args) -> 
         }
     }
 
+    // Linking changes ctime (and mtime for hardlinks), also of files sharing an inode with the
+    // linked ones, so refresh the whole group to keep the index from forcing a rehash.
+    if saved_bytes > 0 && !args.dry_run {
+        for record in linkindex.iter_mut() {
+            if let Ok(metadata) = directory.join(&record.path).metadata() {
+                (record.mtime, record.ctime) = file_times(&metadata);
+            }
+        }
+    }
+
     saved_bytes
 }
 
@@ -279,8 +297,8 @@ pub fn mainloop(index: &mut Index, directory: &Path, args: &utils::Args) -> u64 
     for subindex in index.values_mut() {
         subindex.sort_unstable_by_key(|r| (r.blake3, r.xxh3));
 
-        for group in
-            subindex.chunk_by(|a, b| a.blake3.is_some() && a.blake3 == b.blake3 && a.xxh3 == b.xxh3)
+        for group in subindex
+            .chunk_by_mut(|a, b| a.blake3.is_some() && a.blake3 == b.blake3 && a.xxh3 == b.xxh3)
         {
             if group.len() > 1 {
                 saved_bytes += make_links(group, directory, args);
@@ -374,6 +392,7 @@ pub fn indexfile_set(cdb_w: &mut cdb2::CDBWriter, directory: &Path, index: &Inde
             let filerecord = IdxFileRecord {
                 size: record.size,
                 mtime: record.mtime,
+                ctime: record.ctime,
                 hash: record.blake3,
             };
             indexfile.insert(path, filerecord);

@@ -56,11 +56,11 @@ fn main() -> ExitCode {
         }
         index::make_file_hashes(&mut index, directory, &indexfile, &args);
 
+        saved_bytes += index::mainloop(&mut index, directory, &args);
+
         if let Some(cdb_w) = &mut cdb_w {
             index::indexfile_set(cdb_w, directory, &index);
         }
-
-        saved_bytes += index::mainloop(&mut index, directory, &args);
     }
 
     if let Some(cdb_w) = cdb_w

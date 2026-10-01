@@ -151,7 +151,6 @@ pub fn already_linked(src: &Path, dest: &Path) -> bool {
     src_physical == dest_physical
 }
 
-
 // Unlike FICLONE, the kernel compares the bytes itself and shares extents atomically, so dest is
 // never truncated and a file changed since hashing is left alone.
 fn make_dedupe(src: &Path, dest: &Path) -> io::Result<()> {
@@ -199,16 +198,19 @@ fn make_dedupe(src: &Path, dest: &Path) -> io::Result<()> {
 }
 
 pub fn make_reflink(src: &Path, dest: &Path) -> io::Result<()> {
+    // The truncate and FICLONE both update dest's mtime. Restore it so backup tools, make and the
+    // index file don't see the file as changed. A dest that doesn't exist yet has none to keep.
+    let mtime = dest.metadata().and_then(|m| m.modified()).ok();
     let srcfile = fs::File::open(src)?;
     let destfile = fs::File::create(dest)?;
-    unsafe {
-        let rc = libc::ioctl(destfile.as_raw_fd(), libc::FICLONE, srcfile.as_raw_fd());
-        if rc == 0 {
-            Ok(())
-        } else {
-            Err(io::Error::last_os_error())
-        }
+    let rc = unsafe { libc::ioctl(destfile.as_raw_fd(), libc::FICLONE, srcfile.as_raw_fd()) };
+    if rc != 0 {
+        return Err(io::Error::last_os_error());
     }
+    if let Some(mtime) = mtime {
+        destfile.set_times(fs::FileTimes::new().set_modified(mtime))?;
+    }
+    Ok(())
 }
 
 fn make_hardlink(src: &Path, dest: &Path) -> io::Result<()> {

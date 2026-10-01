@@ -106,6 +106,12 @@ pub fn size_to_string(size: u64) -> String {
     }
 }
 
+pub fn first_extent(path: &Path) -> Option<(u64, u64)> {
+    let dev = path.metadata().ok()?.dev();
+    let physical = fiemap::fiemap(path).ok()?.next()?.ok()?.fe_physical;
+    Some((dev, physical))
+}
+
 pub fn already_linked(src: &Path, dest: &Path) -> bool {
     let src_metadata = match src.metadata() {
         Ok(m) => m,

@@ -245,6 +245,18 @@ pub fn make_file_hashes(
 fn make_links(linkindex: &mut [IdxRecord], directory: &Path, args: &utils::Args) -> u64 {
     let mut saved_bytes = 0;
 
+    // Use the file that already shares data with the most others as the source. Otherwise those
+    // others get relinked for nothing and counted as saved.
+    let extents: Vec<_> = linkindex
+        .iter()
+        .map(|r| utils::first_extent(&directory.join(&r.path)))
+        .collect();
+    let sharing =
+        |i: usize| extents[i].map_or(0, |e| extents.iter().filter(|&&o| o == Some(e)).count());
+    if let Some(best) = (0..linkindex.len()).rev().max_by_key(|&i| sharing(i)) {
+        linkindex.swap(0, best);
+    }
+
     let mut src = PathBuf::from(directory);
     src.push(&linkindex[0].path);
 

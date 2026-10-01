@@ -1,4 +1,5 @@
 use argp::FromArgs;
+use fiemap::FiemapExtentFlags;
 use std::ffi::OsString;
 use std::fs;
 use std::io;
@@ -106,9 +107,27 @@ pub fn size_to_string(size: u64) -> String {
     }
 }
 
+// Data not yet written to disk has no physical address (fiemap reports 0), so flush it first.
+// Inline data lives in filesystem metadata and can't be shared, so it is reported as an error and
+// the caller skips the file.
+fn extents(path: &Path) -> io::Result<Vec<(u64, u64, u64)>> {
+    let file = fs::File::open(path)?;
+    file.sync_data()?;
+    let mut list = Vec::new();
+    for extent in fiemap::Fiemap::new(&file) {
+        let extent = extent?;
+        let unusable = FiemapExtentFlags::UNKNOWN | FiemapExtentFlags::DATA_INLINE;
+        if extent.fe_flags.intersects(unusable) {
+            return Err(io::Error::other("extent has no usable physical address"));
+        }
+        list.push((extent.fe_logical, extent.fe_physical, extent.fe_length));
+    }
+    Ok(list)
+}
+
 pub fn first_extent(path: &Path) -> Option<(u64, u64)> {
     let dev = path.metadata().ok()?.dev();
-    let physical = fiemap::fiemap(path).ok()?.next()?.ok()?.fe_physical;
+    let physical = extents(path).ok()?.first()?.1;
     Some((dev, physical))
 }
 
@@ -136,25 +155,10 @@ pub fn already_linked(src: &Path, dest: &Path) -> bool {
         return true;
     }
 
-    let src_physical = match fiemap::fiemap(src) {
-        Ok(mut f) => match f.next() {
-            Some(Ok(extent)) => extent.fe_physical,
-            Some(Err(_)) => return true,
-            None => return false,
-        },
-        Err(_) => return true,
-    };
-
-    let dest_physical = match fiemap::fiemap(dest) {
-        Ok(mut f) => match f.next() {
-            Some(Ok(extent)) => extent.fe_physical,
-            Some(Err(_)) => return true,
-            None => return false,
-        },
-        Err(_) => return true,
-    };
-
-    src_physical == dest_physical
+    match (extents(src), extents(dest)) {
+        (Ok(src_extents), Ok(dest_extents)) => src_extents == dest_extents,
+        _ => true,
+    }
 }
 
 // Unlike FICLONE, the kernel compares the bytes itself and shares extents atomically, so dest is

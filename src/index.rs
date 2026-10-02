@@ -114,43 +114,52 @@ fn scandir_inner(index: &mut Index, basedir: &Path, directory: &Path, pb: &Progr
 
     if let Ok(iter) = directory.read_dir() {
         for entry in iter {
-            let path = match entry {
-                Ok(e) => e.path(),
+            let entry = match entry {
+                Ok(e) => e,
                 Err(err) => {
                     eprintln!("Warning: failed to read directory entry: {err}");
                     continue;
                 }
             };
 
-            if !path.is_symlink() {
-                let submetadata = match path.metadata() {
-                    Ok(m) => m,
+            // The file type usually comes with the directory listing, so symlinks and special
+            // files are skipped without a stat call. It doesn't follow symlinks, nor does
+            // entry.metadata().
+            let file_type = match entry.file_type() {
+                Ok(t) => t,
+                Err(_) => continue,
+            };
+            if !file_type.is_dir() && !file_type.is_file() {
+                continue;
+            }
+            let submetadata = match entry.metadata() {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
+            let path = entry.path();
+
+            if file_type.is_dir() && metadata.dev() == submetadata.dev() {
+                scandir_inner(index, basedir, &path, pb);
+            } else if file_type.is_file() && submetadata.len() > 0 {
+                let path = match path.strip_prefix(basedir) {
+                    Ok(p) => p.to_path_buf(),
                     Err(_) => continue,
                 };
 
-                if path.is_dir() && metadata.dev() == submetadata.dev() {
-                    scandir_inner(index, basedir, &path, pb);
-                } else if path.is_file() && submetadata.len() > 0 {
-                    let path = match path.strip_prefix(basedir) {
-                        Ok(p) => p.to_path_buf(),
-                        Err(_) => continue,
-                    };
+                let (mtime, ctime) = file_times(&submetadata);
 
-                    let (mtime, ctime) = file_times(&submetadata);
+                let record = IdxRecord {
+                    path,
+                    size: submetadata.len(),
+                    mtime,
+                    ctime,
+                    inode: (submetadata.dev(), submetadata.ino()),
+                    blake3: None,
+                    xxh3: None,
+                };
 
-                    let record = IdxRecord {
-                        path,
-                        size: submetadata.len(),
-                        mtime,
-                        ctime,
-                        inode: (submetadata.dev(), submetadata.ino()),
-                        blake3: None,
-                        xxh3: None,
-                    };
-
-                    index.entry(record.size).or_default().push(record);
-                    pb.inc(1);
-                }
+                index.entry(record.size).or_default().push(record);
+                pb.inc(1);
             }
         }
     }

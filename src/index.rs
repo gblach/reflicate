@@ -192,7 +192,7 @@ fn hash_file(record: &mut IdxRecord, path: &Path, args: &utils::Args, pb: &Progr
         None => return,
     };
 
-    let mut reader = BufReader::with_capacity(32768, f);
+    let mut reader = BufReader::with_capacity(4 << 20, f);
     let mut hasher_b3 = blake3::Hasher::new();
     let mut hasher_xx = xxh3::Xxh3::new();
 
@@ -208,7 +208,7 @@ fn hash_file(record: &mut IdxRecord, path: &Path, args: &utils::Args, pb: &Progr
         if length == 0 {
             break;
         }
-        hasher_b3.update(buffer);
+        hasher_b3.update_rayon(buffer);
         if args.paranoid {
             hasher_xx.update(buffer);
         }

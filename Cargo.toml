@@ -11,7 +11,7 @@ categories = ["command-line-utilities", "filesystem"]
 
 [dependencies]
 argp = "0.4"
-blake3 = "1"
+blake3 = { version = "1", features = ["rayon"] }
 cdb2 = "0.8"
 fiemap = "0.2"
 getrandom = "0.4"

@@ -32,6 +32,8 @@ pub struct IdxFileRecord {
 }
 pub type IndexFile = HashMap<Vec<u8>, IdxFileRecord>;
 
+const HEAD_SIZE: u64 = 65536;
+
 // Nanoseconds since the epoch. ctime is included because, unlike mtime, it can't be set back by
 // tools such as touch.
 fn file_times(metadata: &fs::Metadata) -> (i128, i128) {
@@ -152,6 +154,62 @@ fn scandir_inner(index: &mut Index, basedir: &Path, directory: &Path, pb: &Progr
     }
 }
 
+fn open_file(path: &Path, pb: &ProgressBar) -> Option<fs::File> {
+    match fs::File::open(path) {
+        Ok(f) => Some(f),
+        Err(ref err) if err.kind() == ErrorKind::PermissionDenied => None,
+        Err(err) => {
+            pb.suspend(|| eprintln!("Warning: skipping {}: {err}", path.display()));
+            None
+        }
+    }
+}
+
+fn hash_head(path: &Path, pb: &ProgressBar) -> Option<u128> {
+    let f = open_file(path, pb)?;
+    let mut buffer = Vec::with_capacity(HEAD_SIZE as usize);
+    if let Err(err) = f.take(HEAD_SIZE).read_to_end(&mut buffer) {
+        pb.suspend(|| eprintln!("Warning: failed to read {}: {err}", path.display()));
+        return None;
+    }
+    Some(xxh3::xxh3_128(&buffer))
+}
+
+fn hash_file(record: &mut IdxRecord, path: &Path, args: &utils::Args, pb: &ProgressBar) {
+    let f = match open_file(path, pb) {
+        Some(f) => f,
+        None => return,
+    };
+
+    let mut reader = BufReader::with_capacity(32768, f);
+    let mut hasher_b3 = blake3::Hasher::new();
+    let mut hasher_xx = xxh3::Xxh3::new();
+
+    loop {
+        let buffer = match reader.fill_buf() {
+            Ok(buf) => buf,
+            Err(err) => {
+                pb.suspend(|| eprintln!("Warning: failed to read {}: {err}", path.display()));
+                return;
+            }
+        };
+        let length = buffer.len();
+        if length == 0 {
+            break;
+        }
+        hasher_b3.update(buffer);
+        if args.paranoid {
+            hasher_xx.update(buffer);
+        }
+        reader.consume(length);
+    }
+
+    record.blake3 = Some(hasher_b3.finalize().into());
+    if args.paranoid {
+        record.xxh3 = Some(hasher_xx.digest128());
+    }
+}
+
 pub fn make_file_hashes(
     index: &mut Index,
     directory: &Path,
@@ -168,11 +226,9 @@ pub fn make_file_hashes(
         ProgressStyle::with_template("{pos} / {len} {wide_bar:.white/bright_black}").unwrap(),
     );
 
-    index
-        .par_iter_mut()
-        .flat_map(|(_, subindex)| subindex.par_iter_mut())
-        .for_each(|record| {
-            if !args.paranoid {
+    index.par_iter_mut().for_each(|(&size, subindex)| {
+        if !args.paranoid {
+            for record in subindex.iter_mut() {
                 let path = record.path.to_path_buf().into_os_string().into_vec();
                 if let Some(filerecord) = indexfile.get(&path)
                     && record.size == filerecord.size
@@ -182,62 +238,33 @@ pub fn make_file_hashes(
                     record.blake3 = filerecord.hash;
                 }
             }
+        }
 
-            if record.blake3.is_none() {
-                let mut path = PathBuf::from(directory);
-                path.push(&record.path);
-
-                let f = match fs::File::open(&path) {
-                    Ok(f) => f,
-                    Err(ref err) if err.kind() == ErrorKind::PermissionDenied => {
-                        pb.inc(1);
-                        return;
-                    }
-                    Err(err) => {
-                        pb.suspend(|| eprintln!("Warning: skipping {}: {err}", path.display()));
-                        pb.inc(1);
-                        return;
-                    }
-                };
-
-                let mut reader = BufReader::with_capacity(32768, f);
-                let mut hasher_b3 = blake3::Hasher::new();
-                let mut hasher_xx = xxh3::Xxh3::new();
-                let mut read_ok = true;
-
-                loop {
-                    let buffer = match reader.fill_buf() {
-                        Ok(buf) => buf,
-                        Err(err) => {
-                            pb.suspend(|| {
-                                eprintln!("Warning: failed to read {}: {err}", path.display())
-                            });
-                            read_ok = false;
-                            break;
-                        }
-                    };
-                    let length = buffer.len();
-                    if length == 0 {
-                        break;
-                    }
-                    hasher_b3.update(buffer);
-                    if args.paranoid {
-                        hasher_xx.update(buffer);
-                    }
-                    reader.consume(length);
-                }
-
-                if read_ok {
-                    record.blake3 = Some(hasher_b3.finalize().into());
-
-                    if args.paranoid {
-                        record.xxh3 = Some(hasher_xx.digest128());
-                    }
-                }
+        // Files whose starts differ can't be identical, so only files whose start matches
+        // another one are fully hashed. Files with cached hashes are read too, otherwise a new
+        // file could not be matched with them.
+        let mut needs_hash: Vec<bool> = subindex.iter().map(|r| r.blake3.is_none()).collect();
+        if size > HEAD_SIZE && needs_hash.contains(&true) {
+            let heads: Vec<Option<u128>> = subindex
+                .par_iter()
+                .map(|r| hash_head(&directory.join(&r.path), &pb))
+                .collect();
+            for (i, needed) in needs_hash.iter_mut().enumerate() {
+                *needed &=
+                    heads[i].is_some() && heads.iter().filter(|&&h| h == heads[i]).count() > 1;
             }
+        }
 
-            pb.inc(1);
-        });
+        subindex
+            .par_iter_mut()
+            .zip(needs_hash)
+            .for_each(|(record, needed)| {
+                if needed {
+                    hash_file(record, &directory.join(&record.path), args, &pb);
+                }
+                pb.inc(1);
+            });
+    });
 
     pb.finish();
 }

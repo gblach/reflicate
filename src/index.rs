@@ -17,6 +17,7 @@ pub struct IdxRecord {
     size: u64,
     mtime: i128,
     ctime: i128,
+    inode: (u64, u64),
     blake3: Option<[u8; 32]>,
     xxh3: Option<u128>,
 }
@@ -142,6 +143,7 @@ fn scandir_inner(index: &mut Index, basedir: &Path, directory: &Path, pb: &Progr
                         size: submetadata.len(),
                         mtime,
                         ctime,
+                        inode: (submetadata.dev(), submetadata.ino()),
                         blake3: None,
                         xxh3: None,
                     };
@@ -240,14 +242,37 @@ pub fn make_file_hashes(
             }
         }
 
+        // Hardlinked names share one inode, so only the first name of each inode is read and the
+        // others get its hash. A name added since the last run has no cached hash of its own.
+        let mut owners = HashMap::new();
+        let first: Vec<usize> = subindex
+            .iter()
+            .enumerate()
+            .map(|(i, r)| *owners.entry(r.inode).or_insert(i))
+            .collect();
+        for (i, &f) in first.iter().enumerate() {
+            if subindex[f].blake3.is_none() {
+                subindex[f].blake3 = subindex[i].blake3;
+            }
+        }
+
         // Files whose starts differ can't be identical, so only files whose start matches
         // another one are fully hashed. Files with cached hashes are read too, otherwise a new
         // file could not be matched with them.
-        let mut needs_hash: Vec<bool> = subindex.iter().map(|r| r.blake3.is_none()).collect();
+        let mut needs_hash: Vec<bool> = subindex
+            .iter()
+            .enumerate()
+            .map(|(i, r)| first[i] == i && r.blake3.is_none())
+            .collect();
         if size > HEAD_SIZE && needs_hash.contains(&true) {
             let heads: Vec<Option<u128>> = subindex
                 .par_iter()
-                .map(|r| hash_head(&directory.join(&r.path), &pb))
+                .enumerate()
+                .map(|(i, r)| {
+                    (first[i] == i)
+                        .then(|| hash_head(&directory.join(&r.path), &pb))
+                        .flatten()
+                })
                 .collect();
             for (i, needed) in needs_hash.iter_mut().enumerate() {
                 *needed &=
@@ -264,6 +289,10 @@ pub fn make_file_hashes(
                 }
                 pb.inc(1);
             });
+
+        for (i, &f) in first.iter().enumerate() {
+            (subindex[i].blake3, subindex[i].xxh3) = (subindex[f].blake3, subindex[f].xxh3);
+        }
     });
 
     pb.finish();

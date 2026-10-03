@@ -12,6 +12,15 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
+    if args.directories.is_empty() {
+        if let Err(argp::EarlyExit::Help(help)) =
+            <utils::Args as argp::FromArgs>::from_args(&[env!("CARGO_PKG_NAME")], &["--help"])
+        {
+            eprintln!("{}", help.generate(argp::DEFAULT));
+        }
+        return ExitCode::from(1);
+    }
+
     for directory in args.directories.iter() {
         let directory = Path::new(directory);
         if !index::scandir_checks(directory, &args) {

@@ -466,13 +466,7 @@ pub fn indexfile_set(cdb_w: &mut cdb2::CDBWriter, directory: &Path, index: &Inde
 
     for subindex in index.values() {
         for record in subindex {
-            let path = record
-                .path
-                .strip_prefix(directory)
-                .unwrap_or(&record.path)
-                .to_path_buf()
-                .into_os_string()
-                .into_vec();
+            let path = record.path.to_path_buf().into_os_string().into_vec();
             let filerecord = IdxFileRecord {
                 size: record.size,
                 mtime: record.mtime,

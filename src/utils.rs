@@ -79,7 +79,7 @@ pub fn bold(text: impl std::fmt::Display) -> String {
 }
 
 pub fn temp_filename(prefix: &str) -> OsString {
-    let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    let chars = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
     let mut rand = [0u8; 8];
     let mut suffix = Vec::new();
 
@@ -87,7 +87,7 @@ pub fn temp_filename(prefix: &str) -> OsString {
 
     for char in rand {
         let nth = (char & 0x3f) as usize;
-        suffix.push(chars.chars().nth(nth).unwrap() as u8);
+        suffix.push(chars[nth]);
     }
 
     let mut filename = OsString::with_capacity(prefix.len() + rand.len());

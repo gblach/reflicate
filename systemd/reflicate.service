@@ -3,7 +3,6 @@ Description=Reflicate
 
 [Service]
 Type=oneshot
-ExecStart=/bin/sh -c '~/.cargo/bin/reflicate ~'
-
-[Install]
-WantedBy=multi-user.target
+ExecStart=/bin/sh -c '~/.cargo/bin/reflicate -q -i ~/.cache/reflicate.cdb ~'
+Nice=19
+IOSchedulingClass=idle

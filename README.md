@@ -73,11 +73,18 @@ To do this, you need to run the following commands:
 $ mkdir -p ~/.config/systemd/user/
 $ cp systemd/* ~/.config/systemd/user/
 $ systemctl --user daemon-reload
-$ systemctl --user enable reflicate.timer
+$ systemctl --user enable --now reflicate.timer
 ```
 
 By default, the periodic task runs weekly and **reflicate** your home directory.
 You can adjust this to your needs by editing the `reflicate.service` and `reflicate.timer` files.
+
+If you installed the units from an older version, the service was also enabled on its own.
+It is now started only by the timer, so disable it once:
+
+```
+$ systemctl --user disable reflicate.service
+```
 
 ## Showcase
 

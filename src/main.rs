@@ -69,7 +69,10 @@ fn main() -> ExitCode {
         eprintln!("Warning: failed to finalize index file: {err}");
     }
 
-    println!("{} saved", utils::bold(utils::size_to_string(saved_bytes)));
+    if !args.quiet {
+        let verb = if args.dry_run { "would save" } else { "saved" };
+        println!("{} {verb}", utils::bold(utils::size_to_string(saved_bytes)));
+    }
 
     ExitCode::from(0)
 }

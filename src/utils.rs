@@ -21,7 +21,7 @@ pub struct Args {
     pub fast: bool,
 
     /// make hardlinks instead of reflinks
-    #[argp(switch, short = 'h')]
+    #[argp(switch, short = 'H')]
     pub hardlinks: bool,
 
     /// store computed hashes in indexfile and use them in subsequent runs

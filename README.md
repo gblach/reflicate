@@ -18,7 +18,7 @@ But remember to make a backup first.
 ## Synopsis
 
 ```
-reflicate [<directories...>] [-n] [-f] [-h] [-i <indexfile>] [-p] [-q] [-V]
+reflicate [<directories...>] [-n] [-f] [-H] [-i <indexfile>] [-p] [-q] [-V]
 
 Positional Arguments:
   directories       directories to deduplicate
@@ -27,7 +27,7 @@ Options:
   -n, --dry-run     do not make any filesystem changes
   -f, --fast        clone files without letting the kernel verify their contents
                     (faster, but a file changed after hashing is overwritten)
-  -h, --hardlinks   make hardlinks instead of reflinks
+  -H, --hardlinks   make hardlinks instead of reflinks
   -i, --indexfile   store computed hashes in indexfile and use them in subsequent runs
   -p, --paranoid    compute xxhash hashes in addition to blake3 hashes
                     and do not trust precomputed hashes from indexfile

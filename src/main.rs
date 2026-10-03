@@ -27,6 +27,7 @@ fn main() -> ExitCode {
     }
 
     let mut saved_bytes: u64 = 0;
+    let mut failed = false;
 
     for directory in args.directories.iter() {
         let directory = if directory.ends_with('/') {
@@ -56,7 +57,9 @@ fn main() -> ExitCode {
         }
         index::make_file_hashes(&mut index, directory, &indexfile, &args);
 
-        saved_bytes += index::mainloop(&mut index, directory, &args);
+        let (dir_saved, dir_failed) = index::mainloop(&mut index, directory, &args);
+        saved_bytes += dir_saved;
+        failed |= dir_failed;
 
         if let Some(cdb_w) = &mut cdb_w {
             index::indexfile_set(cdb_w, directory, &index);
@@ -74,5 +77,9 @@ fn main() -> ExitCode {
         println!("{} {verb}", utils::bold(utils::size_to_string(saved_bytes)));
     }
 
-    ExitCode::from(0)
+    if failed {
+        ExitCode::from(1)
+    } else {
+        ExitCode::from(0)
+    }
 }

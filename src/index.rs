@@ -307,8 +307,9 @@ pub fn make_file_hashes(
     pb.finish();
 }
 
-fn make_links(linkindex: &mut [IdxRecord], directory: &Path, args: &utils::Args) -> u64 {
+fn make_links(linkindex: &mut [IdxRecord], directory: &Path, args: &utils::Args) -> (u64, bool) {
     let mut saved_bytes = 0;
+    let mut failed = false;
 
     // Use the file that already shares data with the most others as the source. Otherwise those
     // others get relinked for nothing and counted as saved.
@@ -345,6 +346,7 @@ fn make_links(linkindex: &mut [IdxRecord], directory: &Path, args: &utils::Args)
                     }
                 }
                 Err(err) => {
+                    failed = true;
                     eprintln!(
                         "Warning: failed to link {} => {}: {err}",
                         src.display(),
@@ -365,11 +367,12 @@ fn make_links(linkindex: &mut [IdxRecord], directory: &Path, args: &utils::Args)
         }
     }
 
-    saved_bytes
+    (saved_bytes, failed)
 }
 
-pub fn mainloop(index: &mut Index, directory: &Path, args: &utils::Args) -> u64 {
+pub fn mainloop(index: &mut Index, directory: &Path, args: &utils::Args) -> (u64, bool) {
     let mut saved_bytes: u64 = 0;
+    let mut failed = false;
 
     for subindex in index.values_mut() {
         subindex.sort_unstable_by_key(|r| (r.blake3, r.xxh3));
@@ -378,12 +381,14 @@ pub fn mainloop(index: &mut Index, directory: &Path, args: &utils::Args) -> u64 
             .chunk_by_mut(|a, b| a.blake3.is_some() && a.blake3 == b.blake3 && a.xxh3 == b.xxh3)
         {
             if group.len() > 1 {
-                saved_bytes += make_links(group, directory, args);
+                let (group_saved, group_failed) = make_links(group, directory, args);
+                saved_bytes += group_saved;
+                failed |= group_failed;
             }
         }
     }
 
-    saved_bytes
+    (saved_bytes, failed)
 }
 
 fn cdb_validate(indexfile: &str, cdb: &cdb2::CDB) -> bool {

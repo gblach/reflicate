@@ -53,7 +53,7 @@ Hardlinks differ from reflinks in two ways:
 
 **Reflicate** stores four values in the indexfile: file paths, file sizes, modification times, and blake3 hashes.
 On subsequent runs, it computes hashes only for files that have different size or modification time.
-This mean the program can run faster when indexfile is used.
+This means the program can run faster when indexfile is used.
 
 Internally indexfile is combination of CDB (constant database) and bincode.
 This means that indexfile will be overwritten on subsequent runs,
@@ -115,8 +115,10 @@ Filesystem      Size  Used Avail Use% Mounted on
 Let's **reflicate** the test directory.
 ```
 $ reflicate /mnt/test/
-/mnt/test/file2 => /mnt/test/file1 [10 MiB]
-10 MiB saved
+Scanning /mnt/test/ directory ...
+Computing file hashes ...
+/mnt/test/file1 => file2 [10.0 MiB]
+10.0 MiB saved
 ```
 
 And we see that currently only 43 MiB of disk space is occupied.
@@ -138,8 +140,10 @@ Filesystem      Size  Used Avail Use% Mounted on
 Then **reflicate** the test directory again.
 ```
 $ reflicate /mnt/test/
-/mnt/test/file3 => /mnt/test/file2 [12 MiB]
-12 MiB saved
+Scanning /mnt/test/ directory ...
+Computing file hashes ...
+/mnt/test/file2 => file3 [12.0 MiB]
+12.0 MiB saved
 
 $ df -h /mnt
 Filesystem      Size  Used Avail Use% Mounted on

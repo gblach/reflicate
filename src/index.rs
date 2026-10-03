@@ -50,16 +50,16 @@ pub fn scandir_checks(directory: &Path, args: &utils::Args) -> bool {
         Ok(metadata) => {
             if !metadata.is_dir() {
                 eprintln!(
-                    "File \x1b[0;1m{}\x1b[0m is not a directory.",
-                    directory.to_string_lossy()
+                    "File {} is not a directory.",
+                    utils::bold(directory.to_string_lossy())
                 );
                 return false;
             }
         }
         Err(_) => {
             eprintln!(
-                "Directory \x1b[0;1m{}\x1b[0m does not exist.",
-                directory.to_string_lossy()
+                "Directory {} does not exist.",
+                utils::bold(directory.to_string_lossy())
             );
             return false;
         }
@@ -70,8 +70,8 @@ pub fn scandir_checks(directory: &Path, args: &utils::Args) -> bool {
 
     if fs::File::create(&tmpfile0).is_err() {
         eprintln!(
-            "Directory \x1b[0;1m{}\x1b[0m is not writable.",
-            directory.to_string_lossy()
+            "Directory {} is not writable.",
+            utils::bold(directory.to_string_lossy())
         );
         return false;
     }
@@ -83,10 +83,10 @@ pub fn scandir_checks(directory: &Path, args: &utils::Args) -> bool {
             let _ = fs::remove_file(&tmpfile0);
             eprintln!(
                 concat!(
-                    "Underlying filesystem for \x1b[0;1m{}\x1b[0m",
+                    "Underlying filesystem for {}",
                     " does not support reflinks."
                 ),
-                directory.to_string_lossy()
+                utils::bold(directory.to_string_lossy())
             );
             return false;
         }
@@ -336,10 +336,10 @@ fn make_links(linkindex: &mut [IdxRecord], directory: &Path, args: &utils::Args)
 
                     if !args.quiet {
                         println!(
-                            "{}\x1b[0;1m{}\x1b[0m => \x1b[0;1m{}\x1b[0m [{}]",
+                            "{}{} => {} [{}]",
                             directory.to_string_lossy(),
-                            linkindex[0].path.to_string_lossy(),
-                            linkindex[i].path.to_string_lossy(),
+                            utils::bold(linkindex[0].path.to_string_lossy()),
+                            utils::bold(linkindex[i].path.to_string_lossy()),
                             utils::size_to_string(linkindex[0].size)
                         );
                     }
@@ -403,13 +403,15 @@ pub fn indexfile_open(
         Ok(cdb) if cdb_validate(indexfile, &cdb) => Some(cdb),
         Ok(_) => {
             eprintln!(
-                "Index file \x1b[0;1m{indexfile}\x1b[0m is corrupted, ignoring cached hashes."
+                "Index file {} is corrupted, ignoring cached hashes.",
+                utils::bold(indexfile)
             );
             None
         }
         Err(e) if e.kind() != ErrorKind::NotFound => {
             eprintln!(
-                "Index file \x1b[0;1m{indexfile}\x1b[0m is corrupted, ignoring cached hashes."
+                "Index file {} is corrupted, ignoring cached hashes.",
+                utils::bold(indexfile)
             );
             None
         }
@@ -420,7 +422,7 @@ pub fn indexfile_open(
     if !args.dry_run {
         cdb_w = cdb2::CDBWriter::create(indexfile).ok();
         if cdb_w.is_none() {
-            eprintln!("Index file \x1b[0;1m{indexfile}\x1b[0m is not writable.");
+            eprintln!("Index file {} is not writable.", utils::bold(indexfile));
         }
     }
 

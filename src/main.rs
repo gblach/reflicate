@@ -44,8 +44,8 @@ fn main() -> ExitCode {
 
         if !args.quiet {
             println!(
-                "Scanning \x1b[0;1m{}\x1b[0m directory ...",
-                directory.to_string_lossy()
+                "Scanning {} directory ...",
+                utils::bold(directory.to_string_lossy())
             );
         }
         index::scandir(&mut index, directory, directory, &args);
@@ -69,10 +69,7 @@ fn main() -> ExitCode {
         eprintln!("Warning: failed to finalize index file: {err}");
     }
 
-    println!(
-        "\x1b[0;1m{}\x1b[0m saved",
-        utils::size_to_string(saved_bytes)
-    );
+    println!("{} saved", utils::bold(utils::size_to_string(saved_bytes)));
 
     ExitCode::from(0)
 }

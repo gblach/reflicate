@@ -70,6 +70,14 @@ pub fn is_tty() -> bool {
     std::io::stdout().is_terminal() && std::io::stderr().is_terminal()
 }
 
+pub fn bold(text: impl std::fmt::Display) -> String {
+    if is_tty() {
+        format!("\x1b[0;1m{text}\x1b[0m")
+    } else {
+        text.to_string()
+    }
+}
+
 pub fn temp_filename(prefix: &str) -> OsString {
     let chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
     let mut rand = [0u8; 8];
